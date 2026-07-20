@@ -752,6 +752,15 @@
   flex: 0 0 32px;
 }
 
+/* v0.2.4 — larger inventory column headers (Weapon / Qty. / Enc. / Value). The system pins
+   .list-header to 1.5rem height + line-height, so bump both alongside the font or the taller
+   text clips. Scoped to the party inventory list only. */
+.party-sheet .party-inventory-list .list-header {
+  height: 1.9rem;
+  line-height: 1.9rem;
+  font-size: 1.15em;
+}
+
 /* Phase 8 (002) — Quest Items box: same rhythm as the category lists it sits beside. */
 .party-sheet .sheet-list.quest-items .list-name {
   font-style: italic;

@@ -3,13 +3,15 @@
   "title": "WFRP4e Party Sheet",
   "socket": true,
   "description": "A shared party actor for WFRP4e: tracks membership, journey, and shared inventory across a group of characters.",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "authors": [
     {
-      "name": "GMD"
+      "name": "GMD",
+      "flags": {}
     },
     {
-      "name": "Kingmaker"
+      "name": "Kingmaker",
+      "flags": {}
     }
   ],
   "relationships": {
@@ -17,7 +19,8 @@
       {
         "id": "wfrp4e",
         "type": "system",
-        "manifest": "https://github.com/moo-man/WFRP4e-FoundryVTT/releases/latest/download/system.json"
+        "manifest": "https://github.com/moo-man/WFRP4e-FoundryVTT/releases/latest/download/system.json",
+        "compatibility": {}
       }
     ]
   },
@@ -31,11 +34,14 @@
     {
       "lang": "en",
       "name": "English",
-      "path": "lang/en.json"
+      "path": "lang/en.json",
+      "flags": {}
     }
   ],
   "styles": [
-    "styles/party.css"
+    {
+      "src": "styles/party.css"
+    }
   ],
   "packs": [
     {
@@ -47,7 +53,8 @@
       "ownership": {
         "PLAYER": "NONE",
         "ASSISTANT": "OWNER"
-      }
+      },
+      "flags": {}
     }
   ],
   "documentTypes": {
@@ -64,5 +71,6 @@
   "url": "https://github.com/warhammering/wfrp4e-party-sheet",
   "bugs": "https://github.com/warhammering/wfrp4e-party-sheet/issues",
   "manifest": "https://github.com/warhammering/wfrp4e-party-sheet/releases/latest/download/module.json",
-  "download": "https://github.com/warhammering/wfrp4e-party-sheet/releases/latest/download/module.zip"
+  "download": "https://github.com/warhammering/wfrp4e-party-sheet/releases/download/v0.2.3/module.zip",
+  "flags": {}
 }
