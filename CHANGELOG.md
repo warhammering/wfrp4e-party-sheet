@@ -5,6 +5,25 @@ All notable changes to this module are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] — 2026-07-20
+
+### Changed
+
+- **Value column hides empty denominations.** A 5-brass item now reads `5d` instead of
+  `0GC 0SS 5BP`; a free item shows a dash. The grand-total row uses the same short form. The money
+  summary at the top is unchanged.
+
+### Added
+
+- **GMs can set a coin stack's quantity inline** on the money rows, the same quick-edit the
+  trapping rows use. (Coins still move between actors through Deposit / Withdraw Coins, which
+  works on total value.)
+
+### Note
+
+- If the value column or the member Companion/Henchman dropdown looks broken after updating, the
+  client is running cached code — reload with **Ctrl+F5**.
+
 ## [0.2.0] — 2026-07-20
 
 Four requested features, plus the fixes that surfaced while validating them.

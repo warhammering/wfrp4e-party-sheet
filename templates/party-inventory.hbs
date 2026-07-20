@@ -67,13 +67,17 @@
                   <img src="{{item.img}}">
                   <a class="label">{{item.name}}</a>
                 </div>
-                {{! No per-row withdraw control on money. It routed through the generic per-stack
-                    item path, which checks the request against THAT denomination's quantity only
-                    — so "withdraw 10 SS" was refused against a 5-SS stack even with 6 GC in the
-                    pool. Coins are fungible; the header's Deposit/Withdraw Coins dialog is the
-                    correct entry point and already works on total value, breaking larger coins
-                    down as needed (transfer.js performMoveCoins). }}
-                <a class="small party-col-qty">{{item.quantity}}</a>
+                {{! No per-row WITHDRAW control on money — that routed through the generic per-stack
+                    path, which checked the request against THAT denomination's quantity only, so
+                    "withdraw 10 SS" was refused against a 5-SS stack even with 6 GC in the pool.
+                    Coins move via the header's Deposit/Withdraw Coins dialog, which works on total
+                    value. But a GM CAN set a coin stack's quantity directly here (v0.2.1), the same
+                    inline editor the trapping rows use. }}
+                {{#if item.canEdit}}
+                  <input type="number" class="party-qty-quick-edit party-col-qty" data-action="setItemQuantity" data-id="{{item.id}}" value="{{item.quantity}}" min="0" step="1" data-tooltip="{{localize 'WFRP4EPARTY.SetQuantityTooltip'}}"/>
+                {{else}}
+                  <a class="small party-col-qty">{{item.quantity}}</a>
+                {{/if}}
               </div>
             </div>
           {{/each}}
@@ -109,7 +113,7 @@
                   <a class="small party-col-qty">{{item.quantity}}</a>
                 {{/if}}
                 <div class="small">{{item.encumbrance}}</div>
-                <div class="small party-col-value">{{item.value.gc}}{{localize "MARKET.Abbrev.GC"}} {{item.value.ss}}{{localize "MARKET.Abbrev.SS"}} {{item.value.bp}}{{localize "MARKET.Abbrev.BP"}}</div>
+                <div class="small party-col-value">{{item.valueLabel}}</div>
                 <div class="list-controls">
                   {{#if item.canWithdraw}}
                     <a class="list-control party-kebab" data-tooltip="{{localize 'WFRP4EPARTY.ItemMenuTooltip'}}"><i class="fas fa-ellipsis-vertical"></i></a>
@@ -125,7 +129,7 @@
     {{#if inventory.hasCategories}}
       <div class="party-grand-total">
         <span class="label">{{localize "WFRP4EPARTY.GrandTotalLabel"}}:</span>
-        <span class="value">{{inventory.grandTotal.gc}}{{localize "MARKET.Abbrev.GC"}} {{inventory.grandTotal.ss}}{{localize "MARKET.Abbrev.SS"}} {{inventory.grandTotal.bp}}{{localize "MARKET.Abbrev.BP"}}</span>
+        <span class="value">{{inventory.grandTotalLabel}}</span>
       </div>
     {{/if}}
 

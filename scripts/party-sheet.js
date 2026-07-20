@@ -46,6 +46,18 @@ function coinsToBrass(price) {
   return (price?.gc ?? 0) * COIN_VALUES.gc + (price?.ss ?? 0) * COIN_VALUES.ss + (price?.bp ?? 0) * COIN_VALUES.bp;
 }
 
+// Phase 8 (001, v0.2.1) — a coin-value label that omits zero denominations: 5 brass reads "5d",
+// 2 shillings "2/-", not "0GC 0SS 5BP". An all-zero value renders as a single dash. Built here
+// rather than in the template so the abbreviations localize once and the zero-suppression logic
+// lives in one place (item value cells + the grand-total row both use it).
+function formatCoinLabel(coins) {
+  const parts = [];
+  if (coins.gc) parts.push(`${coins.gc}${game.i18n.localize("MARKET.Abbrev.GC")}`);
+  if (coins.ss) parts.push(`${coins.ss}${game.i18n.localize("MARKET.Abbrev.SS")}`);
+  if (coins.bp) parts.push(`${coins.bp}${game.i18n.localize("MARKET.Abbrev.BP")}`);
+  return parts.length ? parts.join(" ") : "—";
+}
+
 function currentPartyMember(partyActor, memberId) {
   const ref = partyActor.system.members.list.find(candidate => candidate.id === memberId && game.actors.get(candidate.id));
   return ref ? game.actors.get(ref.id) : null;
@@ -600,6 +612,7 @@ export class PartySheet extends BaseWFRP4eActorSheet {
             quantity,
             encumbrance: item.system.encumbrance?.total ?? 0,
             value: brassToCoins(stackBrass),
+            valueLabel: formatCoinLabel(brassToCoins(stackBrass)),
             canWithdraw,
             canEdit,
             canDelete
@@ -633,7 +646,8 @@ export class PartySheet extends BaseWFRP4eActorSheet {
         img: item.img,
         quantity: item.system.quantity?.value ?? 0,
         encumbrance: item.system.encumbrance?.total ?? 0,
-        canWithdraw
+        canWithdraw,
+        canEdit  // v0.2.1 — GMs can set a coin stack's quantity inline (same setItemQuantity path)
       }))
     };
 
@@ -650,7 +664,8 @@ export class PartySheet extends BaseWFRP4eActorSheet {
     // nothing until the party actually holds a quest item.
     const showQuestSection = questItems.length > 0 || game.user.isGM;
 
-    return { categories, hasCategories, questItems, showQuestSection, money, encumbrance, canWithdraw, grandTotal: brassToCoins(grandTotalBrass), alphaSort };
+    const grandTotalCoins = brassToCoins(grandTotalBrass);
+    return { categories, hasCategories, questItems, showQuestSection, money, encumbrance, canWithdraw, grandTotal: grandTotalCoins, grandTotalLabel: formatCoinLabel(grandTotalCoins), alphaSort };
   }
 
   async _promptTransferAmount(fullQty, titleKey) {
