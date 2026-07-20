@@ -311,6 +311,8 @@
   "WFRP4EPARTY.NpcMembersHeading": "NPCs",
   "WFRP4EPARTY.CompanionsHeading": "Companions",
   "WFRP4EPARTY.HenchmenHeading": "Henchmen",
+  "WFRP4EPARTY.MemberCategoryCompanion": "Companion",
+  "WFRP4EPARTY.MemberCategoryHenchman": "Henchman",
   "WFRP4EPARTY.MemberCategoryNone": "—",
   "WFRP4EPARTY.MemberCategoryTooltip": "Tag this member as a Companion or Henchman — moves them out of the PC/NPC list into their own section",
   "WFRP4EPARTY.InventorySortAlphaTooltip": "Sort the pool alphabetically (personal preference — never changes the GM's manual order for other viewers)",

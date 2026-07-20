@@ -15,8 +15,10 @@ const journeyStageLocks = new Set();
 // Phase 8 (003) — the two GM-assignable member tags; order drives both the sheet's
 // Companions-then-Henchmen section order and the GM tag-control's option order.
 const MEMBER_CATEGORY_GROUPS = [
-  { key: "companion", labelKey: "WFRP4EPARTY.CompanionsHeading" },
-  { key: "henchman", labelKey: "WFRP4EPARTY.HenchmenHeading" },
+  // Dropdown labels are SINGULAR (you tag one member AS a Companion). The section HEADINGS stay
+  // plural (a group OF Companions) via their own *Heading keys in the template — do not merge.
+  { key: "companion", labelKey: "WFRP4EPARTY.MemberCategoryCompanion" },
+  { key: "henchman", labelKey: "WFRP4EPARTY.MemberCategoryHenchman" },
 ];
 
 const TEST_TARGET_SKILLS = [
