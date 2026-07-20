@@ -654,6 +654,25 @@
 
 .party-sheet .party-inventory-list .row-content {
   flex-wrap: nowrap;
+  /* The system's .row-content sets no align-items, so cells drift vertically — the .list-name
+     centers its own text (inner flex) while bare .small cells and the qty <input> rely on their
+     own box height. Center every cell here; this selector matches BOTH the header row and the
+     data rows (the header is a .row-content too), so one rule aligns the whole list. */
+  align-items: center;
+  padding-left: 0;   /* header text + row icons flush to the same left edge */
+}
+
+/* Data rows sit as tight as the 2rem item icon — no vertical padding (the item was rendering
+   taller than its icon with extra space below) and no left inset. The header keeps its own
+   taller height above. */
+.party-sheet .party-inventory-list .list-content .list-row {
+  min-height: 0;
+}
+
+.party-sheet .party-inventory-list .list-content .row-content {
+  height: auto;
+  min-height: 0;
+  padding: 0;
 }
 
 .party-sheet .party-kebab {
@@ -756,9 +775,10 @@
    .list-header to 1.5rem height + line-height, so bump both alongside the font or the taller
    text clips. Scoped to the party inventory list only. */
 .party-sheet .party-inventory-list .list-header {
-  height: 1.9rem;
-  line-height: 1.9rem;
-  font-size: 1.15em;
+  /* Taller + larger header text. Vertical centering comes from the shared .row-content rule
+     above (align-items: center), which matches this header too. */
+  height: 2.3rem;
+  font-size: 1.5em;
 }
 
 /* Phase 8 (002) — Quest Items box: same rhythm as the category lists it sits beside. */

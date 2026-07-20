@@ -5,6 +5,15 @@ All notable changes to this module are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.5] — 2026-07-21
+
+### Changed
+
+- Inventory column headers enlarged further and all cells (header + rows) vertically centred, so
+  Qty. / Enc. / Value line up with the column name.
+- Inventory rows tightened to the item icon's height — no extra space below the row and the icon
+  sits flush to the left edge.
+
 ## [0.2.4] — 2026-07-20
 
 ### Changed

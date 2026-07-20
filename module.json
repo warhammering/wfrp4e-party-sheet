@@ -3,7 +3,7 @@
   "title": "WFRP4e Party Sheet",
   "socket": true,
   "description": "A shared party actor for WFRP4e: tracks membership, journey, and shared inventory across a group of characters.",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "authors": [
     {
       "name": "GMD",
