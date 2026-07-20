@@ -5,6 +5,16 @@ All notable changes to this module are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] — 2026-07-20
+
+### Fixed
+
+- **Worn items deposited into the pool now show their true weight.** A worn Leather Jack (and
+  other clothing/armour/containers that weigh less while equipped) was carrying its reduced
+  encumbrance into the shared pool — reading 0 instead of 1, and undercounting the pool's total
+  load. Items are now un-equipped on deposit, so their encumbrance reflects the unworn value.
+  Withdraw an item and re-equip it as normal.
+
 ## [0.2.2] — 2026-07-20
 
 ### Changed

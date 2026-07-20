@@ -2722,7 +2722,18 @@ registerMutationHandler("end-journey-stage-work", async (payload, { requester })
 
 Hooks.on("preCreateItem", (item, data, options, userId) => {
   const partyActor = item.parent;
-  if (partyActor?.type !== PARTY_ACTOR_TYPE || trustedCapacityWrite(options)) return true;
+  if (partyActor?.type !== PARTY_ACTOR_TYPE) return true;
+  // v0.2.3 — nothing in the communal pool is equipped by anyone. Reset system.equipped.value so
+  // the system's DERIVED encumbrance (system.encumbrance.total, which reduceEquippedEncumbrance
+  // subtracts 1 from for equipped armour/clothing/containers — wfrp4e.js:27454) reflects the true
+  // unworn weight. A worn Leather Jack deposited while equipped otherwise carries its reduced
+  // value (0 instead of 1) into the pool's row display AND the load-bearing capacity.current sum
+  // (party-model.js). `equipped` is the real live field — `worn` is a deprecated getter alias.
+  // This runs BEFORE the trusted-write short-circuit so it also covers the transfer-deposit path,
+  // which passes capacityChecked and would otherwise return early. Weapons/ammunition have no
+  // equipped field (optional chaining no-ops) and are unaffected.
+  if (item.system?.equipped?.value) item.updateSource({ "system.equipped.value": false });
+  if (trustedCapacityWrite(options)) return true;
   return rejectCapacityWrite(partyActor, physicalItemLoad(item), userId);
 });
 
