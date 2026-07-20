@@ -1,0 +1,68 @@
+{
+  "id": "wfrp4e-party-sheet",
+  "title": "WFRP4e Party Sheet",
+  "socket": true,
+  "description": "A shared party actor for WFRP4e: tracks membership, journey, and shared inventory across a group of characters.",
+  "version": "0.2.0",
+  "authors": [
+    {
+      "name": "GMD"
+    },
+    {
+      "name": "Kingmaker"
+    }
+  ],
+  "relationships": {
+    "systems": [
+      {
+        "id": "wfrp4e",
+        "type": "system",
+        "manifest": "https://github.com/moo-man/WFRP4e-FoundryVTT/releases/latest/download/system.json"
+      }
+    ]
+  },
+  "esmodules": [
+    "scripts/party-model.js",
+    "scripts/transfer.js",
+    "scripts/journey.js",
+    "scripts/party-sheet.js"
+  ],
+  "languages": [
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "lang/en.json"
+    }
+  ],
+  "styles": [
+    "styles/party.css"
+  ],
+  "packs": [
+    {
+      "name": "travel-events",
+      "label": "Travel Events (Party Sheet)",
+      "path": "packs/travel-events",
+      "type": "RollTable",
+      "system": "wfrp4e",
+      "ownership": {
+        "PLAYER": "NONE",
+        "ASSISTANT": "OWNER"
+      }
+    }
+  ],
+  "documentTypes": {
+    "Actor": {
+      "party": {}
+    }
+  },
+  "compatibility": {
+    "minimum": "13",
+    "verified": "13"
+  },
+  "license": "MIT",
+  "readme": "https://github.com/warhammering/wfrp4e-party-sheet/blob/main/README.md",
+  "url": "https://github.com/warhammering/wfrp4e-party-sheet",
+  "bugs": "https://github.com/warhammering/wfrp4e-party-sheet/issues",
+  "manifest": "https://github.com/warhammering/wfrp4e-party-sheet/releases/latest/download/module.json",
+  "download": "https://github.com/warhammering/wfrp4e-party-sheet/releases/latest/download/module.zip"
+}

@@ -1,0 +1,793 @@
+@import url("./party-theme.css");
+
+/* The part template's root element IS the part in v13, so this div also carries
+   .sheet-header — the system's flex-direction:column must be out-specificity'd
+   (same specificity, module CSS loads later and wins the tie). */
+.wfrp4e.actor.sheet.application.party-sheet .party-header-content {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.75em;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-header-content img.profile {
+  width: 12rem;
+  height: 12rem;
+  margin: 0;
+  object-fit: cover;
+}
+
+/* The name field lives INSIDE the summary box (user directive 2026-07-17);
+   the box takes all header width beside the portrait. */
+.party-sheet .party-summary-box .header-fields {
+  margin-bottom: 0.35em;
+}
+
+.party-sheet .party-summary-box .header-fields input[name="name"] {
+  width: 100%;
+}
+
+.party-sheet .party-summary-box {
+  flex: 1 1 0;
+  align-self: stretch;
+  border: 1px solid var(--color-faded);
+  border-radius: 4px;
+  padding: 0.45em 0.75em;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.3em;
+  color: var(--color-grey1);
+}
+
+.party-sheet .party-summary-box .summary-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1em;
+}
+
+.party-sheet .party-summary-box .warning {
+  color: var(--color-warm);
+  margin-top: 0.25em;
+}
+
+.party-sheet .group-rolls {
+  padding: 0.35em 0.5em;
+  border-bottom: 1px solid var(--color-faded);
+  color: var(--color-grey1);
+}
+
+.party-sheet .group-rolls-title {
+  text-align: center;
+  font-size: 1.2em;
+}
+
+.party-sheet .group-rolls-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5em 1em;
+  margin-top: 0.4em;
+}
+
+.party-sheet .group-roll {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6em;
+  padding: 0.5em 0.8em;
+  background: var(--color-grey1);
+  color: var(--color-cream);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1.05em;
+}
+
+.party-sheet .group-roll i {
+  color: var(--color-cream);
+}
+
+.party-sheet .card-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  padding: 0.5em;
+}
+
+.party-sheet .member-card {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.6em;
+  padding: 0.4em;
+  /* Phase 8 (005) — containing block for the absolutely-positioned .party-reveal-stats toggle. */
+  position: relative;
+  border: 1px solid var(--color-faded);
+  color: var(--color-grey1);
+}
+
+.party-sheet .member-card.vacant {
+  opacity: 0.6;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.party-sheet .member-portrait {
+  width: 8rem;
+  height: 8rem;
+  flex: 0 0 auto;
+  display: block;
+  object-fit: cover;
+  cursor: pointer;
+}
+
+.party-sheet .member-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+}
+
+.party-sheet .member-row {
+  display: flex;
+  gap: 1em;
+}
+
+.party-sheet .member-main {
+  flex: 1 1 55%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4em;
+}
+
+.party-sheet .member-pools {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+  font-size: 1.05em;
+}
+
+.party-sheet .member-stats {
+  flex: 1 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+  gap: 1.1em;
+  padding-left: 1.1em;
+  border-left: 1px solid var(--color-faded);
+}
+
+.party-sheet .party-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35em;
+}
+
+.party-sheet .party-stat i {
+  color: var(--color-grey2);
+  font-size: 1.4em;
+}
+
+.party-sheet .party-stat .value {
+  font-size: 1.2em;
+}
+
+.party-sheet a.party-stat {
+  cursor: pointer;
+}
+
+.party-sheet .member-topline {
+  display: flex;
+  align-items: baseline;
+  gap: 1em;
+}
+
+.party-sheet .member-topline .member-name {
+  font-size: 1.25em;
+}
+
+.party-sheet .member-topline .list-control {
+  margin-left: auto;
+}
+
+.party-sheet .wounds-bar {
+  position: relative;
+  height: 1.5em;
+  background: var(--color-faded);
+}
+
+.party-sheet .wounds-bar-fill {
+  --wounds-bar-color: var(--color-warm);
+  position: absolute;
+  inset: 0;
+  background: var(--wounds-bar-color);
+}
+
+.party-sheet .wounds-bar-text {
+  position: relative;
+  text-align: center;
+  color: var(--color-cream);
+  font-size: 1.05em;
+  line-height: 1.45em;
+}
+
+.party-sheet .condition-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35em;
+}
+
+.party-sheet .condition-icon-wrapper {
+  position: relative;
+}
+
+.party-sheet .condition-icon {
+  width: 1.5em;
+  height: 1.5em;
+}
+
+.party-sheet .condition-count {
+  position: absolute;
+  bottom: -0.25em;
+  right: -0.25em;
+  font-size: 0.7em;
+  background: var(--color-warm);
+  color: var(--color-cream);
+  border-radius: 50%;
+  padding: 0 0.3em;
+}
+
+.party-sheet .char-strip {
+  display: grid;
+}
+
+.party-sheet .party-inventory-search {
+  padding: 0.35em 0.5em;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.party-sheet .party-inventory-search input {
+  width: 100%;
+  flex: 1;
+}
+
+.party-sheet .party-money-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.35em 0.5em;
+  border-bottom: 1px solid var(--color-faded);
+  color: var(--color-grey1);
+}
+
+.party-sheet .party-money-summary .list-controls {
+  display: flex;
+  gap: 0.75em;
+}
+
+.party-sheet .party-owner-tag {
+  font-size: 0.8em;
+  color: var(--color-grey2);
+}
+
+.party-sheet .recuperate-marker i {
+  color: var(--color-warm);
+}
+
+.party-sheet .group-roll.make-camp {
+  background: var(--color-grey2);
+}
+
+.party-sheet .group-roll.rest-party {
+  background: var(--color-grey2);
+}
+
+
+.party-sheet .journey-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+  padding: 0.5em;
+  color: var(--color-grey1);
+}
+
+.party-sheet .journey-notice {
+  padding: 0.4em 0.6em;
+  border: 1px solid var(--color-faded);
+  border-radius: 4px;
+  font-size: 0.9em;
+  color: var(--color-grey2);
+}
+
+.party-sheet .journey-section {
+  border: 1px solid var(--color-faded);
+  border-radius: 4px;
+  padding: 0.5em 0.7em;
+}
+
+.party-sheet .journey-section-title {
+  font-size: 1.1em;
+  font-weight: bold;
+  margin-bottom: 0.35em;
+}
+
+.party-sheet .journey-config-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.75em;
+}
+
+.party-sheet .journey-config-fields .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2em;
+}
+
+.party-sheet .journey-config-fields label {
+  font-size: 0.85em;
+  color: var(--color-grey1);
+}
+
+.party-sheet .journey-config-fields input[type="text"],
+.party-sheet .journey-config-fields input[type="number"],
+.party-sheet .journey-config-fields select,
+.party-sheet .journey-config-fields .journey-status-value,
+.party-sheet .journey-config-fields .journey-status-value-readonly {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  height: 34px;
+  min-height: 34px;
+  max-height: 34px;
+  line-height: 32px;
+  margin: 0;
+  padding: 0 8px;
+  background: var(--color-cream);
+  color: var(--color-grey1);
+  border: 1px solid var(--color-grey2);
+  border-radius: 3px;
+  font-weight: bold;
+  font-size: 1em;
+  font-family: inherit;
+  vertical-align: middle;
+}
+
+.party-sheet .journey-config-fields .journey-status-value,
+.party-sheet .journey-config-fields .journey-status-value-readonly {
+  display: flex;
+  align-items: center;
+  background: transparent;
+  border: 1px dashed var(--color-faded);
+}
+
+/* Native <select> ignores a plain height declaration in some browsers (Chromium keeps its
+   own intrinsic control height regardless of box-sizing) — appearance:none + a CSS-drawn
+   arrow is the only reliable way to make it match the sibling <input> boxes exactly. */
+.party-sheet .journey-config-fields select {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 24px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--color-grey1) 50%),
+    linear-gradient(135deg, var(--color-grey1) 50%, transparent 50%);
+  background-position: right 12px center, right 8px center;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+.party-sheet .journey-field-destination {
+  flex: 2 1 12em;
+}
+
+.party-sheet .journey-field-stages {
+  flex: 0 1 6em;
+}
+
+.party-sheet .journey-field-season {
+  flex: 0 1 9em;
+}
+
+.party-sheet .journey-field-status {
+  flex: 3 1 16em;
+}
+
+.party-sheet .journey-status-value {
+  display: inline-block;
+  line-height: 1.4em;
+}
+
+.party-sheet .journey-hint {
+  font-size: 0.85em;
+  color: var(--color-grey2);
+  margin: 0.35em 0;
+}
+
+.party-sheet .journey-lifecycle-buttons,
+.party-sheet .journey-encounter-buttons,
+.party-sheet .journey-log-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+  margin-top: 0.35em;
+}
+
+.party-sheet .journey-log-buttons .group-roll {
+  flex: 1 1 auto;
+}
+
+.party-sheet .journey-custom-tables summary,
+.party-sheet .journey-log summary {
+  cursor: pointer;
+  font-size: 1.1em;
+  font-weight: bold;
+  color: var(--color-grey1);
+}
+
+.party-sheet .journey-weather-value {
+  font-size: 1.1em;
+  margin-bottom: 0.25em;
+}
+
+.party-sheet .journey-weather-effects {
+  font-size: 0.9em;
+  color: var(--color-grey1);
+  margin-bottom: 0.4em;
+}
+
+.party-sheet .journey-endeavour-desc {
+  font-size: 0.8em;
+  font-style: italic;
+  color: var(--color-grey2);
+  margin-top: 0.2em;
+}
+
+.party-sheet .journey-endeavour-readonly {
+  color: var(--color-grey1);
+}
+
+.party-sheet .journey-custom-tables .form-group {
+  margin-top: 0.35em;
+}
+
+.party-sheet .journey-custom-tables input[type="text"] {
+  width: 100%;
+}
+
+.party-sheet .journey-camp-rest {
+  border: 1px solid var(--color-faded);
+  border-radius: 4px;
+}
+
+.party-sheet .journey-endeavour-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.35em;
+}
+
+.party-sheet .journey-endeavour-table thead th {
+  background: var(--color-grey1);
+  color: var(--color-cream);
+  text-align: left;
+  padding: 0.3em 0.5em;
+  font-weight: bold;
+}
+
+.party-sheet .journey-endeavour-table td {
+  padding: 0.3em 0.3em;
+  vertical-align: middle;
+}
+
+.party-sheet .journey-endeavour-modifier {
+  width: 3.5em;
+  min-height: 1.6em;
+  background: var(--color-cream);
+  color: var(--color-grey1);
+  border: 1px solid var(--color-grey2);
+  border-radius: 3px;
+  text-align: center;
+  font-weight: bold;
+}
+
+.party-sheet .journey-endeavour-modifier:disabled {
+  opacity: 0.5;
+}
+
+.party-sheet .journey-endeavour-modifier-empty {
+  color: var(--color-grey2);
+}
+
+.party-sheet .journey-flag {
+  font-size: 0.85em;
+  color: var(--color-grey2);
+}
+
+.party-sheet .journey-encounter-entry,
+.party-sheet .journey-log-entry,
+.party-sheet .journey-arrival-penalty {
+  font-size: 0.9em;
+  padding: 0.15em 0;
+}
+
+.party-sheet .journey-encounter-text {
+  font-size: 0.85em;
+  color: var(--color-grey2);
+  margin-left: 0.5em;
+}
+
+.party-sheet .journey-exposure-reminder {
+  margin-top: 0.35em;
+  font-size: 0.9em;
+}
+
+/* Native <select>/<option> contrast — the system's dark chrome leaves these unstyled by
+   default in some browsers, producing low-contrast or mismatched dropdown text. */
+.party-sheet .journey-panel select {
+  background: var(--color-grey1);
+  color: var(--color-cream);
+  border: 1px solid var(--color-faded);
+  padding: 0.2em 0.4em;
+}
+
+.party-sheet .journey-panel select option {
+  background: var(--color-grey1);
+  color: var(--color-cream);
+}
+
+/* Make Camp dialogs render outside the sheet, so they get their own
+   module-unique scope class instead of .party-sheet. */
+.wfrp4e-party-camp .camp-hint {
+  font-size: 0.9em;
+  color: var(--color-grey1);
+  margin: 0.25em 0 0.5em 0;
+}
+
+.wfrp4e-party-camp .camp-campers {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35em;
+}
+
+.wfrp4e-party-camp .camp-camper {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.wfrp4e-party-camp .camp-camper .camp-name {
+  font-weight: bold;
+}
+
+.wfrp4e-party-camp .camp-skill-select {
+  margin-left: auto;
+  font-size: 0.9em;
+}
+
+.wfrp4e-party-camp .camp-pool {
+  font-weight: bold;
+  margin: 0.25em 0;
+}
+
+.wfrp4e-party-camp .camp-alloc {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.wfrp4e-party-camp .camp-alloc th {
+  text-align: left;
+  font-size: 0.85em;
+}
+
+.wfrp4e-party-camp .camp-alloc td {
+  padding: 0.15em 0.25em;
+}
+
+.wfrp4e-party-camp .camp-alloc input[type="number"] {
+  width: 4em;
+  text-align: center;
+}
+
+.wfrp4e-party-camp .camp-max {
+  font-size: 0.85em;
+  color: var(--color-grey2);
+}
+
+/* D5 — encounter-suggestion hint: highlights the button suggestCategory picked. */
+.party-sheet .journey-suggested {
+  outline: 2px solid var(--color-warm-2, #c9a66b);
+  outline-offset: 1px;
+  font-weight: bold;
+}
+
+/* D.2 — per-assignment skill pick (Practice a Skill / Map the Route). */
+.party-sheet .journey-endeavour-skill {
+  display: block;
+  margin-top: 0.25em;
+  font-size: 0.9em;
+}
+
+/* Per-member unavailable endeavour options: disabled for players; for the GM they stay
+   selectable but flagged — a "(no skill)"/"(Fatigued)" label suffix carries the warning
+   (option colour is unreliable across browsers/themes), with colour as reinforcement. */
+.party-sheet .journey-endeavour-table select option.journey-option-warn {
+  color: #a11212 !important;
+  font-style: italic;
+  font-weight: bold;
+}
+
+/* Phase 7 — capacity gauge (header, all viewers) + GM-only Capacity Settings panel
+   (Inventory tab: bonus input + connected-vehicle row, per user direction 2026-07-19 —
+   moved off the header so the GM has room for the setup hints). */
+.party-sheet .party-capacity-settings {
+  padding: 0.35em 0.5em;
+  border-bottom: 1px solid var(--color-faded);
+  color: var(--color-grey1);
+}
+
+.party-sheet .party-capacity-settings-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin-top: 0.25em;
+}
+
+.party-sheet .party-capacity-settings-row input {
+  width: 3.5em;
+}
+
+/* Phase 7 — inventory row GM controls: inline qty quick-edit input replaces the plain qty
+   span for editable rows; a single kebab trigger (bespoke GM-gated ContextMenu, user
+   direction 2026-07-19 — matches the character-sheet trapping-row UX without reusing the
+   inherited unsafe stock menu) replaces the old 3-separate-icon row, which the inherited
+   .list-controls/.row-content rules were never sized for (only ever shipped 1 icon). */
+.party-sheet .party-inventory-list .list-controls {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.5em;
+  white-space: nowrap;
+}
+
+.party-sheet .party-inventory-list .row-content {
+  flex-wrap: nowrap;
+}
+
+.party-sheet .party-kebab {
+  cursor: pointer;
+}
+
+/* Phase 7 — multi-vehicle list (revised 2026-07-19: a party may connect more than one
+   vehicle; each entry shows portrait, name, its Carries contribution, and a remove control). */
+.party-sheet .party-vehicle-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25em;
+  margin-top: 0.25em;
+}
+
+.party-sheet .party-vehicle-entry {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.party-sheet .party-vehicle-icon {
+  width: 1.5em;
+  height: 1.5em;
+  object-fit: cover;
+  border: none;
+}
+
+.party-sheet .party-qty-quick-edit {
+  width: 3em;
+  text-align: center;
+}
+
+/* Phase 7 — NPC subsection: same card-grid rhythm as the PC section, with a redacted
+   portrait+name-only card for non-GM viewers (Risk 7.B — structural, not just styled,
+   redaction; this rule only affects the GM's own reduced-detail affordance). */
+.party-sheet .party-npc-subsection {
+  border-top: 1px solid var(--color-faded);
+  padding-top: 0.5em;
+}
+
+.party-sheet .member-card.npc-redacted {
+  opacity: 0.85;
+  align-items: center;
+}
+
+/* Phase 7 — Post Log Summary publicOnly checkbox. */
+.party-sheet .journey-log-public-only {
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
+  font-size: 0.9em;
+}
+
+/* Phase 8 (001) — grand total row, mirrors .party-money-total's label/value layout. */
+.party-sheet .party-grand-total {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5em;
+  padding: 0.35em 0.5em;
+  color: var(--color-grey1);
+}
+
+/* Phase 8 (001) — inventory column sizing.
+   The system's shared `.small` cell is `flex: 0 0 50px` with `overflow:hidden; text-overflow:
+   ellipsis`. A coin string ("6GC 0SS 0BP") measures ~83px, so the Value cell clipped to "6GC …".
+   Two separate problems were fixed here, both measured in the live DOM 2026-07-20:
+     1. Value cell too narrow  -> own class, wider basis + smaller font (coin strings are dense).
+     2. Header/row misalignment -> the row's qty cell is a 100px <input> for a GM but a 50px
+        <a class="small"> for a player, while the header's Qty. cell was always 50px, and the
+        header had no cell mirroring the row's 32px .list-controls. Pinning one qty width for
+        BOTH roles + adding a header spacer makes the columns line up regardless of who looks.
+   Scoped under the module app class per [[feedback_module_css_scoped_no_conflicts]] — the system's
+   own `.small` is left untouched. */
+.party-sheet .party-inventory-list .party-col-value {
+  flex: 0 0 108px;
+  text-align: right;
+  padding-right: 0.75em;
+  white-space: nowrap;
+}
+
+/* Only the DATA cell is condensed — coin strings are dense ("0GC 10SS 0BP"). The header label
+   keeps the standard column-heading size so it matches Qty./Enc. beside it. */
+.party-sheet .party-inventory-list .list-content .party-col-value {
+  font-size: 0.82em;
+}
+
+.party-sheet .party-inventory-list .party-col-qty {
+  flex: 0 0 64px;
+  width: 64px;
+  box-sizing: border-box;
+}
+
+/* Header spacer: empty, but must occupy the same track as the row's kebab column. */
+.party-sheet .party-inventory-list .list-header .list-controls {
+  flex: 0 0 32px;
+}
+
+/* Phase 8 (002) — Quest Items box: same rhythm as the category lists it sits beside. */
+.party-sheet .sheet-list.quest-items .list-name {
+  font-style: italic;
+}
+
+/* Phase 8 (003) — GM-only per-card tag select, sized to sit beside the remove-member X. */
+.party-sheet .party-member-category {
+  width: auto;
+  max-width: 7em;
+  margin-right: 0.35em;
+}
+
+/* Phase 8 (005) — GM-only per-member "show stats to players" toggle, sits in the card topline
+   beside the category select and the remove-X. */
+/* Absolutely positioned so it occupies the dead space above the (vertically centred, 8rem)
+   portrait without participating in the card's flex row — nothing else shifts. */
+.party-sheet .party-reveal-stats {
+  position: absolute;
+  top: 0.3em;
+  left: 0.4em;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+  font-size: 0.72em;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.party-sheet .party-reveal-stats input {
+  margin: 0;
+  cursor: pointer;
+}
+
+/* Phase 8 (004) — A-Z toggle in the inventory search bar; .active marks the current state. */
+.party-sheet .party-inventory-search .list-control.active {
+  color: var(--color-warm);
+}

@@ -1,0 +1,178 @@
+<section class="tab {{tab.cssClass}}" data-group="primary" data-tab="{{tab.id}}">
+  <div class="party-inventory-search">
+    <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+    <input type="search" aria-label="{{localize 'WFRP4EPARTY.InventorySearchPlaceholder'}}" placeholder="{{localize 'WFRP4EPARTY.InventorySearchPlaceholder'}}">
+    <a class="list-control{{#if inventory.alphaSort}} active{{/if}}" data-action="toggleInventorySortAlpha" data-tooltip="{{localize 'WFRP4EPARTY.InventorySortAlphaTooltip'}}"><i class="fas fa-arrow-down-a-z"></i></a>
+  </div>
+
+  {{#if isGM}}
+  <div class="party-capacity-settings">
+    <div class="group-rolls-title label" data-tooltip="{{localize 'WFRP4EPARTY.CapacitySettingsHint'}}">{{localize "WFRP4EPARTY.CapacitySettingsHeading"}}</div>
+    <div class="party-capacity-settings-row">
+      <span class="label" data-tooltip="{{localize 'WFRP4EPARTY.CapacityBonusHint'}}">{{localize "WFRP4EPARTY.CapacityBonusLabel"}}</span>
+      <input type="number" name="capacityBonus" data-action="setCapacityBonus" value="{{capacity.bonus}}" min="0" step="1" data-tooltip="{{localize 'WFRP4EPARTY.CapacityBonusHint'}}"/>
+    </div>
+    <div class="party-capacity-settings-row">
+      <span class="label" data-tooltip="{{localize 'WFRP4EPARTY.VehicleHint'}}">{{localize "WFRP4EPARTY.ConnectedVehiclesLabel"}}</span>
+    </div>
+    <div class="party-vehicle-list">
+      {{#each capacity.vehicles as |v|}}
+        <div class="party-vehicle-entry" data-id="{{v.id}}">
+          <img class="party-vehicle-icon" src="{{v.img}}">
+          <span class="party-vehicle-name">{{v.name}}</span>
+          <span class="party-vehicle-carries">({{v.carries}} {{localize "SHEET.EncAbbrev"}})</span>
+          <a class="list-control" data-action="removeVehicle" data-tooltip="{{localize 'WFRP4EPARTY.DisconnectVehicleTooltip'}}"><i class="fas fa-xmark"></i></a>
+        </div>
+      {{else}}
+        <div class="party-vehicle-entry empty">
+          <span class="label" data-tooltip="{{localize 'WFRP4EPARTY.VehicleHint'}}">{{localize "WFRP4EPARTY.NoVehicleConnected"}}</span>
+        </div>
+      {{/each}}
+    </div>
+  </div>
+  {{/if}}
+
+  <div class="party-money-summary">
+    <div class="party-money-total">
+      <span class="label">{{localize "WFRP4EPARTY.PartyCoin"}}:</span>
+      <span class="value">{{inventory.money.gc}}{{localize "MARKET.Abbrev.GC"}} {{inventory.money.ss}}{{localize "MARKET.Abbrev.SS"}} {{inventory.money.bp}}{{localize "MARKET.Abbrev.BP"}}</span>
+    </div>
+    <div class="list-controls">
+      <a data-action="depositCoins">{{localize "WFRP4EPARTY.DepositCoins"}}</a>
+      <a data-action="withdrawCoins">{{localize "WFRP4EPARTY.WithdrawCoins"}}</a>
+      {{! Consolidation rewrites the shared pool's denominations for everyone, so it is GM-only —
+          canWithdraw is true for any player owning a member and was too permissive here. }}
+      {{#if isGM}}
+        <a data-action="consolidateMoney">{{localize "WFRP4EPARTY.ConsolidateMoney"}}</a>
+      {{/if}}
+    </div>
+  </div>
+
+  <div class="party-inventory-list">
+    {{#if inventory.money.items.length}}
+      <div class="sheet-list currency">
+        <div class="list-header row-content">
+          <div class="list-name">{{localize "WFRP4E.TrappingType.Money"}}</div>
+          <a class="small party-col-qty">{{localize "SHEET.QtyAbbrev"}}</a>
+        </div>
+        <div class="list-content">
+          {{#each inventory.money.items as |item|}}
+            {{! data-uuid is GM-only: it is what makes the row match warhammer-lib's dragSelector
+                '[data-uuid]:not([data-nodrag])' (warhammer-lib.js:7148). Players get no drag at
+                all. The GM's drag is made safe by PartySheet._onDragStart, which emits a private
+                payload type instead of a stock Item payload — see the comment there. }}
+            <div class="list-row" data-id="{{item.id}}"{{#if @root.isGM}} data-uuid="{{item.uuid}}"{{/if}}>
+              <div class="row-content">
+                <div class="list-name">
+                  <img src="{{item.img}}">
+                  <a class="label">{{item.name}}</a>
+                </div>
+                {{! No per-row withdraw control on money. It routed through the generic per-stack
+                    item path, which checks the request against THAT denomination's quantity only
+                    — so "withdraw 10 SS" was refused against a 5-SS stack even with 6 GC in the
+                    pool. Coins are fungible; the header's Deposit/Withdraw Coins dialog is the
+                    correct entry point and already works on total value, breaking larger coins
+                    down as needed (transfer.js performMoveCoins). }}
+                <a class="small party-col-qty">{{item.quantity}}</a>
+              </div>
+            </div>
+          {{/each}}
+        </div>
+      </div>
+    {{/if}}
+
+    {{#each inventory.categories as |category key|}}
+      <div class="sheet-list inventory {{key}}">
+        <div class="list-header row-content">
+          <div class="list-name">{{category.label}}</div>
+          <a class="small party-col-qty">{{localize "SHEET.QtyAbbrev"}}</a>
+          <div class="small">{{localize "SHEET.EncAbbrev"}}</div>
+          <div class="small party-col-value">{{localize "WFRP4EPARTY.ValueHeader"}}</div>
+          {{! spacer mirroring the row's .list-controls cell so header labels line up with their data }}
+          <div class="list-controls"></div>
+        </div>
+        <div class="list-content">
+          {{#each category.items as |item|}}
+            {{! data-uuid is GM-only: it is what makes the row match warhammer-lib's dragSelector
+                '[data-uuid]:not([data-nodrag])' (warhammer-lib.js:7148). Players get no drag at
+                all. The GM's drag is made safe by PartySheet._onDragStart, which emits a private
+                payload type instead of a stock Item payload — see the comment there. }}
+            <div class="list-row" data-id="{{item.id}}"{{#if @root.isGM}} data-uuid="{{item.uuid}}"{{/if}}>
+              <div class="row-content">
+                <div class="list-name">
+                  <img src="{{item.img}}">
+                  <a class="label">{{item.name}}</a>
+                </div>
+                {{#if item.canEdit}}
+                  <input type="number" class="party-qty-quick-edit party-col-qty" data-action="setItemQuantity" data-id="{{item.id}}" value="{{item.quantity}}" min="0" step="1" data-tooltip="{{localize 'WFRP4EPARTY.SetQuantityTooltip'}}"/>
+                {{else}}
+                  <a class="small party-col-qty">{{item.quantity}}</a>
+                {{/if}}
+                <div class="small">{{item.encumbrance}}</div>
+                <div class="small party-col-value">{{item.value.gc}}{{localize "MARKET.Abbrev.GC"}} {{item.value.ss}}{{localize "MARKET.Abbrev.SS"}} {{item.value.bp}}{{localize "MARKET.Abbrev.BP"}}</div>
+                <div class="list-controls">
+                  {{#if item.canWithdraw}}
+                    <a class="list-control party-kebab" data-tooltip="{{localize 'WFRP4EPARTY.ItemMenuTooltip'}}"><i class="fas fa-ellipsis-vertical"></i></a>
+                  {{/if}}
+                </div>
+              </div>
+            </div>
+          {{/each}}
+        </div>
+      </div>
+    {{/each}}
+
+    {{#if inventory.hasCategories}}
+      <div class="party-grand-total">
+        <span class="label">{{localize "WFRP4EPARTY.GrandTotalLabel"}}:</span>
+        <span class="value">{{inventory.grandTotal.gc}}{{localize "MARKET.Abbrev.GC"}} {{inventory.grandTotal.ss}}{{localize "MARKET.Abbrev.SS"}} {{inventory.grandTotal.bp}}{{localize "MARKET.Abbrev.BP"}}</span>
+      </div>
+    {{/if}}
+
+    {{#if inventory.showQuestSection}}
+      <div class="sheet-list inventory quest-items" data-quest-drop>
+        <div class="list-header row-content">
+          <div class="list-name">{{localize "WFRP4EPARTY.QuestItemsHeading"}}</div>
+          <a class="small party-col-qty">{{localize "SHEET.QtyAbbrev"}}</a>
+          <div class="small">{{localize "SHEET.EncAbbrev"}}</div>
+          <div class="list-controls"></div>
+        </div>
+        <div class="list-content">
+          {{#each inventory.questItems as |item|}}
+            <div class="list-row" data-id="{{item.id}}">
+              <div class="row-content">
+                <div class="list-name">
+                  <img src="{{item.img}}">
+                  <a class="label">{{item.name}}</a>
+                </div>
+                {{#if item.canEdit}}
+                  <input type="number" class="party-qty-quick-edit party-col-qty" data-action="setItemQuantity" data-id="{{item.id}}" value="{{item.quantity}}" min="0" step="1" data-tooltip="{{localize 'WFRP4EPARTY.SetQuantityTooltip'}}"/>
+                {{else}}
+                  <a class="small party-col-qty">{{item.quantity}}</a>
+                {{/if}}
+                <div class="small">{{item.encumbrance}}</div>
+                <div class="list-controls">
+                  {{#if item.canWithdraw}}
+                    <a class="list-control party-kebab" data-tooltip="{{localize 'WFRP4EPARTY.ItemMenuTooltip'}}"><i class="fas fa-ellipsis-vertical"></i></a>
+                  {{/if}}
+                </div>
+              </div>
+            </div>
+          {{else}}
+            <div class="list-row empty">
+              <span class="label">{{localize "WFRP4EPARTY.QuestItemsEmpty"}}</span>
+            </div>
+          {{/each}}
+        </div>
+      </div>
+    {{/if}}
+
+    {{#unless inventory.money.items.length}}
+      {{#unless inventory.hasCategories}}
+        {{#unless inventory.questItems.length}}
+          <div class="label party-inventory-empty">{{localize "WFRP4EPARTY.InventoryEmpty"}}</div>
+        {{/unless}}
+      {{/unless}}
+    {{/unless}}
+  </div>
+</section>

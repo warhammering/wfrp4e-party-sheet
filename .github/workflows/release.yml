@@ -1,0 +1,47 @@
+name: Release
+
+# Publishes a Foundry-installable release whenever you push a version tag, e.g.
+#   git tag v1.2.0 && git push origin v1.2.0
+# It stamps module.json with the tag's version + that release's download URL, zips the
+# module, and attaches module.json + module.zip to the GitHub Release. The manifest URL
+# (.../releases/latest/download/module.json) always points at the newest release, so
+# Foundry offers users the update automatically.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stamp version + download URL into module.json
+        env:
+          REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            const m = JSON.parse(fs.readFileSync("module.json", "utf8"));
+            m.version  = process.env.TAG.replace(/^v/, "");
+            m.manifest = `https://github.com/${process.env.REPO}/releases/latest/download/module.json`;
+            m.download = `https://github.com/${process.env.REPO}/releases/download/${process.env.TAG}/module.zip`;
+            fs.writeFileSync("module.json", JSON.stringify(m, null, 2) + "\n");
+          '
+
+      - name: Build module.zip
+        run: zip -r module.zip module.json scripts styles templates lang assets packs README.md LICENSE
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          files: |
+            module.json
+            module.zip

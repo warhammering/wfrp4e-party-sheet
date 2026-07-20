@@ -1,0 +1,9 @@
+{
+  "name": "wfrp4e-party-sheet",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node tests/static-validation.mjs"
+  }
+}

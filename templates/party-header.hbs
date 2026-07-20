@@ -1,0 +1,33 @@
+<div class="party-header-content">
+  <img class="profile" src="{{document.img}}" data-action="editImage" data-edit="img" title="{{document.name}}" />
+  <div class="party-summary-box">
+    <div class="header-fields">
+      <input name="name" type="text" value="{{document.name}}" placeholder="{{localize 'WFRP4EPARTY.NamePlaceholder'}}" {{#unless isGM}}readonly{{/unless}} />
+    </div>
+    <div class="summary-item">
+      <span class="label" data-tooltip="{{localize 'WFRP4EPARTY.SummaryLowestMoveHint'}}">{{localize "WFRP4EPARTY.SummaryLowestMove"}}</span>
+      <span>{{summary.lowestMove}}</span>
+    </div>
+    <div class="summary-item">
+      <span class="label">{{localize "WFRP4EPARTY.SummaryFatigued"}}</span>
+      <span>{{summary.fatiguedCount}}</span>
+    </div>
+    <div class="summary-item">
+      <span class="label">{{localize "WFRP4EPARTY.SummaryWounds"}}</span>
+      <span>{{summary.woundsTotal.value}} / {{summary.woundsTotal.max}}</span>
+    </div>
+    <div class="summary-item party-capacity" {{#if isGM}}data-tooltip="{{localize 'WFRP4EPARTY.CapacityBreakdownTooltip' members=capacity.memberAllowance vehicle=capacity.vehicle bonus=capacity.bonus max=capacity.max}}"{{/if}}>
+      <span class="label">{{localize "WFRP4EPARTY.CapacityLabel"}}</span>
+      <span>{{capacity.current}} / {{capacity.max}}</span>
+    </div>
+    {{#if journey.showCurrentStage}}
+    <div class="summary-item">
+      <span class="label">{{localize "WFRP4EPARTY.HeaderStage"}}</span>
+      <span>{{journey.config.currentStage}} / {{journey.config.totalStages}}</span>
+    </div>
+    {{/if}}
+    {{#if summary.zeroWoundsNames.length}}
+      <div class="label warning">{{localize "WFRP4EPARTY.SummaryZeroWounds"}}: {{#each summary.zeroWoundsNames}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}</div>
+    {{/if}}
+  </div>
+</div>

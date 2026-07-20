@@ -1,0 +1,461 @@
+<section class="tab {{tab.cssClass}}" data-group="primary" data-tab="{{tab.id}}">
+  {{#if isGM}}
+  <div class="group-rolls">
+    <div class="group-rolls-title label">{{localize "WFRP4EPARTY.GroupRolls"}}</div>
+    <div class="group-rolls-buttons">
+      {{#each groupTests as |gt|}}
+        <a class="group-roll" data-action="rollGroupTest" data-test-index="{{@index}}" data-tooltip="{{gt.tooltip}}">
+          <i class="fas {{gt.icon}}"></i>
+          <span>{{gt.label}}</span>
+        </a>
+      {{/each}}
+      <a class="group-roll" data-action="openGroupTestPicker" data-tooltip="{{localize 'WFRP4EPARTY.GroupTestPicker'}}">
+        <i class="fas fa-dice-d20"></i>
+        <span>{{localize "WFRP4EPARTY.GroupTestPickerShort"}}</span>
+      </a>
+    </div>
+  </div>
+  {{/if}}
+
+  <div class="card-grid">
+    {{#each memberCards as |card|}}
+      {{#if card.vacant}}
+        <div class="member-card vacant" data-id="{{card.id}}">
+          <div class="label">{{card.name}} — {{localize "WFRP4EPARTY.Vacant"}}</div>
+          {{#if @root.isGM}}
+          <div class="list-controls">
+            <a class="list-control" data-action="removeMember" title="{{localize 'WFRP4EPARTY.RemoveMemberTitle'}}"><i class="fas fa-xmark"></i></a>
+          </div>
+          {{/if}}
+        </div>
+      {{else if card.npcRedacted}}
+        {{! Phase 8 (005) — a PC card can now be redacted too, when a GM unticks its reveal-stats
+            box. Same name+portrait-only shape the NPC subsection has always used. }}
+        <div class="member-card npc-redacted" data-id="{{card.id}}">
+          <img class="member-portrait" src="{{card.img}}">
+          <div class="member-body">
+            <span class="label member-name">{{card.name}}</span>
+          </div>
+        </div>
+      {{else}}
+        <div class="member-card" data-id="{{card.id}}">
+          {{#if @root.isGM}}
+            {{! Phase 8 (005) — GM control over whether players see this member's stats. Absolutely
+                positioned into the empty space above the portrait so it disturbs no existing layout. }}
+            <label class="party-reveal-stats" data-tooltip="{{localize 'WFRP4EPARTY.RevealStatsTooltip'}}">
+              <input type="checkbox" data-action="toggleRevealStats" {{#if card.revealStats}}checked{{/if}}/>
+              <span>{{localize "WFRP4EPARTY.RevealStatsLabel"}}</span>
+            </label>
+          {{/if}}
+          <img class="member-portrait" src="{{card.img}}" data-action="openMemberSheet" data-tooltip="{{localize 'WFRP4EPARTY.OpenSheet'}}">
+          <div class="member-body">
+            <div class="member-row">
+              <div class="member-main">
+                <div class="member-topline">
+                  <span class="label member-name">{{card.name}}</span>
+                  {{#if @root.isGM}}
+                  <select class="party-member-category" data-action="setMemberCategory" data-tooltip="{{localize 'WFRP4EPARTY.MemberCategoryTooltip'}}">
+                    {{#each @root.memberCategoryOptions as |opt|}}
+                      <option value="{{opt.key}}" {{#if (eq opt.key card.category)}}selected{{/if}}>{{opt.label}}</option>
+                    {{/each}}
+                  </select>
+                  <a class="list-control" data-action="removeMember" title="{{localize 'WFRP4EPARTY.RemoveMemberTitle'}}"><i class="fas fa-xmark"></i></a>
+                  {{/if}}
+                </div>
+                <div class="wounds-bar">
+                  <div class="wounds-bar-fill" style="width:{{pct card.wounds.value card.wounds.max true}}%"></div>
+                  <div class="wounds-bar-text">{{card.wounds.value}} / {{card.wounds.max}}</div>
+                </div>
+                <div class="member-pools">
+                  <span class="label">{{localize "WFRP4EPARTY.Fortune"}}</span> <span class="value">{{card.fortune}}</span>
+                  <span class="label">{{localize "WFRP4EPARTY.Resolve"}}</span> <span class="value">{{card.resolve}}</span>
+                  <span class="label">{{localize "WFRP4EPARTY.Movement"}}</span> <span class="value">{{card.move}}</span>
+                </div>
+                {{#if card.zeroWounds}}
+                  <div class="label warning">{{localize "WFRP4EPARTY.ZeroWounds"}}</div>
+                {{/if}}
+                <div class="condition-row">
+                  {{#each card.conditions as |condition|}}
+                    <span class="condition-icon-wrapper">
+                      <img class="condition-icon" src="{{condition.icon}}" data-tooltip="{{condition.label}}">
+                      {{#if condition.stackable}}<span class="condition-count">{{condition.count}}</span>{{/if}}
+                    </span>
+                  {{/each}}
+                  {{#if card.recuperating}}
+                    <span class="recuperate-marker" data-tooltip="{{localize 'WFRP4EPARTY.RecuperateMarkerTooltip'}}">
+                      <i class="fas fa-mug-hot"></i>
+                    </span>
+                  {{/if}}
+                </div>
+              </div>
+              <div class="member-stats">
+                <div class="member-test-stats">
+                  {{#each card.testTargets as |target|}}
+                    {{#if card.canRoll}}
+                      <a class="party-stat test-target" data-action="rollTestTarget" data-test-index="{{@index}}" data-tooltip="{{target.tooltip}}{{#if target.isFallback}} ({{localize 'WFRP4EPARTY.CharFallback'}}){{/if}}">
+                        <i class="fas {{target.icon}}"></i>
+                        <span class="value">{{target.value}}</span>
+                      </a>
+                    {{else}}
+                      <span class="party-stat test-target" data-tooltip="{{target.label}}{{#if target.isFallback}} ({{localize 'WFRP4EPARTY.CharFallback'}}){{/if}}">
+                        <i class="fas {{target.icon}}"></i>
+                        <span class="value">{{target.value}}</span>
+                      </span>
+                    {{/if}}
+                  {{/each}}
+                </div>
+                <div class="member-action-stats">
+                  {{#if card.canRest}}
+                    <a class="party-stat" data-action="restMember" data-tooltip="{{localize 'WFRP4EPARTY.RestTooltip'}}">
+                      <i class="fas fa-bed"></i>
+                    </a>
+                  {{else}}
+                    <span class="party-stat" data-tooltip="{{localize 'WFRP4EPARTY.RestTooltip'}}">
+                      <i class="fas fa-bed"></i>
+                    </span>
+                  {{/if}}
+                  {{#if @root.isGM}}
+                    <a class="party-stat" data-action="toggleRecuperate" data-tooltip="{{localize 'WFRP4EPARTY.ToggleRecuperateTooltip'}}">
+                      <i class="fas {{#if card.recuperating}}fa-mug-hot{{else}}fa-fire{{/if}}"></i>
+                    </a>
+                  {{/if}}
+                </div>
+              </div>
+            </div>
+            <div class="char-strip characteristic-grid">
+              {{#each card.characteristics as |char|}}
+                <div class="header" data-tooltip="{{configLookup "characteristics" char.key}}">{{localize (configLookup "characteristicsAbbrev" char.key)}}</div>
+              {{/each}}
+              {{#each card.characteristics as |char|}}
+                <div class="value">{{char.value}}</div>
+              {{/each}}
+            </div>
+          </div>
+        </div>
+      {{/if}}
+    {{/each}}
+    {{#unless memberCards.length}}
+      <div class="member-card empty">
+        <div class="label">{{localize "WFRP4EPARTY.NoMembers"}}</div>
+      </div>
+    {{/unless}}
+  </div>
+
+  {{#if npcCards.length}}
+  <div class="party-npc-subsection">
+    <div class="group-rolls-title label">{{localize "WFRP4EPARTY.NpcMembersHeading"}}</div>
+    <div class="card-grid">
+      {{#each npcCards as |card|}}
+        {{#if card.npcRedacted}}
+          <div class="member-card npc-redacted" data-id="{{card.id}}">
+            <img class="member-portrait" src="{{card.img}}">
+            <div class="member-body">
+              <span class="label member-name">{{card.name}}</span>
+            </div>
+          </div>
+        {{else}}
+          <div class="member-card" data-id="{{card.id}}">
+            {{#if @root.isGM}}
+              {{! Phase 8 (005) — GM control over whether players see this member's stats. Absolutely
+                  positioned into the empty space above the portrait so it disturbs no existing layout. }}
+              <label class="party-reveal-stats" data-tooltip="{{localize 'WFRP4EPARTY.RevealStatsTooltip'}}">
+                <input type="checkbox" data-action="toggleRevealStats" {{#if card.revealStats}}checked{{/if}}/>
+                <span>{{localize "WFRP4EPARTY.RevealStatsLabel"}}</span>
+              </label>
+            {{/if}}
+            <img class="member-portrait" src="{{card.img}}" data-action="openMemberSheet" data-tooltip="{{localize 'WFRP4EPARTY.OpenSheet'}}">
+            <div class="member-body">
+              <div class="member-row">
+                <div class="member-main">
+                  <div class="member-topline">
+                    <span class="label member-name">{{card.name}}</span>
+                    {{#if @root.isGM}}
+                    <select class="party-member-category" data-action="setMemberCategory" data-tooltip="{{localize 'WFRP4EPARTY.MemberCategoryTooltip'}}">
+                      {{#each @root.memberCategoryOptions as |opt|}}
+                        <option value="{{opt.key}}" {{#if (eq opt.key card.category)}}selected{{/if}}>{{opt.label}}</option>
+                      {{/each}}
+                    </select>
+                    <a class="list-control" data-action="removeMember" title="{{localize 'WFRP4EPARTY.RemoveMemberTitle'}}"><i class="fas fa-xmark"></i></a>
+                    {{/if}}
+                  </div>
+                  <div class="wounds-bar">
+                    <div class="wounds-bar-fill" style="width:{{pct card.wounds.value card.wounds.max true}}%"></div>
+                    <div class="wounds-bar-text">{{card.wounds.value}} / {{card.wounds.max}}</div>
+                  </div>
+                  <div class="member-pools">
+                    <span class="label">{{localize "WFRP4EPARTY.Fortune"}}</span> <span class="value">{{card.fortune}}</span>
+                    <span class="label">{{localize "WFRP4EPARTY.Resolve"}}</span> <span class="value">{{card.resolve}}</span>
+                    <span class="label">{{localize "WFRP4EPARTY.Movement"}}</span> <span class="value">{{card.move}}</span>
+                  </div>
+                  {{#if card.zeroWounds}}
+                    <div class="label warning">{{localize "WFRP4EPARTY.ZeroWounds"}}</div>
+                  {{/if}}
+                  <div class="condition-row">
+                    {{#each card.conditions as |condition|}}
+                      <span class="condition-icon-wrapper">
+                        <img class="condition-icon" src="{{condition.icon}}" data-tooltip="{{condition.label}}">
+                        {{#if condition.stackable}}<span class="condition-count">{{condition.count}}</span>{{/if}}
+                      </span>
+                    {{/each}}
+                  </div>
+                </div>
+                <div class="member-stats">
+                  <div class="member-test-stats">
+                    {{#each card.testTargets as |target|}}
+                      {{#if card.canRoll}}
+                        <a class="party-stat test-target" data-action="rollTestTarget" data-test-index="{{@index}}" data-tooltip="{{target.tooltip}}{{#if target.isFallback}} ({{localize 'WFRP4EPARTY.CharFallback'}}){{/if}}">
+                          <i class="fas {{target.icon}}"></i>
+                          <span class="value">{{target.value}}</span>
+                        </a>
+                      {{else}}
+                        <span class="party-stat test-target" data-tooltip="{{target.label}}{{#if target.isFallback}} ({{localize 'WFRP4EPARTY.CharFallback'}}){{/if}}">
+                          <i class="fas {{target.icon}}"></i>
+                          <span class="value">{{target.value}}</span>
+                        </span>
+                      {{/if}}
+                    {{/each}}
+                  </div>
+                </div>
+              </div>
+              <div class="char-strip characteristic-grid">
+                {{#each card.characteristics as |char|}}
+                  <div class="header" data-tooltip="{{configLookup "characteristics" char.key}}">{{localize (configLookup "characteristicsAbbrev" char.key)}}</div>
+                {{/each}}
+                {{#each card.characteristics as |char|}}
+                  <div class="value">{{char.value}}</div>
+                {{/each}}
+              </div>
+            </div>
+          </div>
+        {{/if}}
+      {{/each}}
+    </div>
+  </div>
+  {{/if}}
+
+  {{#if companionCards.length}}
+  <div class="party-npc-subsection">
+    <div class="group-rolls-title label">{{localize "WFRP4EPARTY.CompanionsHeading"}}</div>
+    <div class="card-grid">
+      {{#each companionCards as |card|}}
+        {{#if card.npcRedacted}}
+          <div class="member-card npc-redacted" data-id="{{card.id}}">
+            <img class="member-portrait" src="{{card.img}}">
+            <div class="member-body">
+              <span class="label member-name">{{card.name}}</span>
+            </div>
+          </div>
+        {{else}}
+          <div class="member-card" data-id="{{card.id}}">
+            {{#if @root.isGM}}
+              {{! Phase 8 (005) — GM control over whether players see this member's stats. Absolutely
+                  positioned into the empty space above the portrait so it disturbs no existing layout. }}
+              <label class="party-reveal-stats" data-tooltip="{{localize 'WFRP4EPARTY.RevealStatsTooltip'}}">
+                <input type="checkbox" data-action="toggleRevealStats" {{#if card.revealStats}}checked{{/if}}/>
+                <span>{{localize "WFRP4EPARTY.RevealStatsLabel"}}</span>
+              </label>
+            {{/if}}
+            <img class="member-portrait" src="{{card.img}}" data-action="openMemberSheet" data-tooltip="{{localize 'WFRP4EPARTY.OpenSheet'}}">
+            <div class="member-body">
+              <div class="member-row">
+                <div class="member-main">
+                  <div class="member-topline">
+                    <span class="label member-name">{{card.name}}</span>
+                    {{#if @root.isGM}}
+                    <select class="party-member-category" data-action="setMemberCategory" data-tooltip="{{localize 'WFRP4EPARTY.MemberCategoryTooltip'}}">
+                      {{#each @root.memberCategoryOptions as |opt|}}
+                        <option value="{{opt.key}}" {{#if (eq opt.key card.category)}}selected{{/if}}>{{opt.label}}</option>
+                      {{/each}}
+                    </select>
+                    <a class="list-control" data-action="removeMember" title="{{localize 'WFRP4EPARTY.RemoveMemberTitle'}}"><i class="fas fa-xmark"></i></a>
+                    {{/if}}
+                  </div>
+                  <div class="wounds-bar">
+                    <div class="wounds-bar-fill" style="width:{{pct card.wounds.value card.wounds.max true}}%"></div>
+                    <div class="wounds-bar-text">{{card.wounds.value}} / {{card.wounds.max}}</div>
+                  </div>
+                  <div class="member-pools">
+                    <span class="label">{{localize "WFRP4EPARTY.Fortune"}}</span> <span class="value">{{card.fortune}}</span>
+                    <span class="label">{{localize "WFRP4EPARTY.Resolve"}}</span> <span class="value">{{card.resolve}}</span>
+                    <span class="label">{{localize "WFRP4EPARTY.Movement"}}</span> <span class="value">{{card.move}}</span>
+                  </div>
+                  {{#if card.zeroWounds}}
+                    <div class="label warning">{{localize "WFRP4EPARTY.ZeroWounds"}}</div>
+                  {{/if}}
+                  <div class="condition-row">
+                    {{#each card.conditions as |condition|}}
+                      <span class="condition-icon-wrapper">
+                        <img class="condition-icon" src="{{condition.icon}}" data-tooltip="{{condition.label}}">
+                        {{#if condition.stackable}}<span class="condition-count">{{condition.count}}</span>{{/if}}
+                      </span>
+                    {{/each}}
+                    {{#if card.recuperating}}
+                      <span class="recuperate-marker" data-tooltip="{{localize 'WFRP4EPARTY.RecuperateMarkerTooltip'}}">
+                        <i class="fas fa-mug-hot"></i>
+                      </span>
+                    {{/if}}
+                  </div>
+                </div>
+                <div class="member-stats">
+                  <div class="member-test-stats">
+                    {{#each card.testTargets as |target|}}
+                      {{#if card.canRoll}}
+                        <a class="party-stat test-target" data-action="rollTestTarget" data-test-index="{{@index}}" data-tooltip="{{target.tooltip}}{{#if target.isFallback}} ({{localize 'WFRP4EPARTY.CharFallback'}}){{/if}}">
+                          <i class="fas {{target.icon}}"></i>
+                          <span class="value">{{target.value}}</span>
+                        </a>
+                      {{else}}
+                        <span class="party-stat test-target" data-tooltip="{{target.label}}{{#if target.isFallback}} ({{localize 'WFRP4EPARTY.CharFallback'}}){{/if}}">
+                          <i class="fas {{target.icon}}"></i>
+                          <span class="value">{{target.value}}</span>
+                        </span>
+                      {{/if}}
+                    {{/each}}
+                  </div>
+                  <div class="member-action-stats">
+                    {{#if card.canRest}}
+                      <a class="party-stat" data-action="restMember" data-tooltip="{{localize 'WFRP4EPARTY.RestTooltip'}}">
+                        <i class="fas fa-bed"></i>
+                      </a>
+                    {{else}}
+                      <span class="party-stat" data-tooltip="{{localize 'WFRP4EPARTY.RestTooltip'}}">
+                        <i class="fas fa-bed"></i>
+                      </span>
+                    {{/if}}
+                    {{#if @root.isGM}}
+                      <a class="party-stat" data-action="toggleRecuperate" data-tooltip="{{localize 'WFRP4EPARTY.ToggleRecuperateTooltip'}}">
+                        <i class="fas {{#if card.recuperating}}fa-mug-hot{{else}}fa-fire{{/if}}"></i>
+                      </a>
+                    {{/if}}
+                  </div>
+                </div>
+              </div>
+              <div class="char-strip characteristic-grid">
+                {{#each card.characteristics as |char|}}
+                  <div class="header" data-tooltip="{{configLookup "characteristics" char.key}}">{{localize (configLookup "characteristicsAbbrev" char.key)}}</div>
+                {{/each}}
+                {{#each card.characteristics as |char|}}
+                  <div class="value">{{char.value}}</div>
+                {{/each}}
+              </div>
+            </div>
+          </div>
+        {{/if}}
+      {{/each}}
+    </div>
+  </div>
+  {{/if}}
+
+  {{#if henchmenCards.length}}
+  <div class="party-npc-subsection">
+    <div class="group-rolls-title label">{{localize "WFRP4EPARTY.HenchmenHeading"}}</div>
+    <div class="card-grid">
+      {{#each henchmenCards as |card|}}
+        {{#if card.npcRedacted}}
+          <div class="member-card npc-redacted" data-id="{{card.id}}">
+            <img class="member-portrait" src="{{card.img}}">
+            <div class="member-body">
+              <span class="label member-name">{{card.name}}</span>
+            </div>
+          </div>
+        {{else}}
+          <div class="member-card" data-id="{{card.id}}">
+            {{#if @root.isGM}}
+              {{! Phase 8 (005) — GM control over whether players see this member's stats. Absolutely
+                  positioned into the empty space above the portrait so it disturbs no existing layout. }}
+              <label class="party-reveal-stats" data-tooltip="{{localize 'WFRP4EPARTY.RevealStatsTooltip'}}">
+                <input type="checkbox" data-action="toggleRevealStats" {{#if card.revealStats}}checked{{/if}}/>
+                <span>{{localize "WFRP4EPARTY.RevealStatsLabel"}}</span>
+              </label>
+            {{/if}}
+            <img class="member-portrait" src="{{card.img}}" data-action="openMemberSheet" data-tooltip="{{localize 'WFRP4EPARTY.OpenSheet'}}">
+            <div class="member-body">
+              <div class="member-row">
+                <div class="member-main">
+                  <div class="member-topline">
+                    <span class="label member-name">{{card.name}}</span>
+                    {{#if @root.isGM}}
+                    <select class="party-member-category" data-action="setMemberCategory" data-tooltip="{{localize 'WFRP4EPARTY.MemberCategoryTooltip'}}">
+                      {{#each @root.memberCategoryOptions as |opt|}}
+                        <option value="{{opt.key}}" {{#if (eq opt.key card.category)}}selected{{/if}}>{{opt.label}}</option>
+                      {{/each}}
+                    </select>
+                    <a class="list-control" data-action="removeMember" title="{{localize 'WFRP4EPARTY.RemoveMemberTitle'}}"><i class="fas fa-xmark"></i></a>
+                    {{/if}}
+                  </div>
+                  <div class="wounds-bar">
+                    <div class="wounds-bar-fill" style="width:{{pct card.wounds.value card.wounds.max true}}%"></div>
+                    <div class="wounds-bar-text">{{card.wounds.value}} / {{card.wounds.max}}</div>
+                  </div>
+                  <div class="member-pools">
+                    <span class="label">{{localize "WFRP4EPARTY.Fortune"}}</span> <span class="value">{{card.fortune}}</span>
+                    <span class="label">{{localize "WFRP4EPARTY.Resolve"}}</span> <span class="value">{{card.resolve}}</span>
+                    <span class="label">{{localize "WFRP4EPARTY.Movement"}}</span> <span class="value">{{card.move}}</span>
+                  </div>
+                  {{#if card.zeroWounds}}
+                    <div class="label warning">{{localize "WFRP4EPARTY.ZeroWounds"}}</div>
+                  {{/if}}
+                  <div class="condition-row">
+                    {{#each card.conditions as |condition|}}
+                      <span class="condition-icon-wrapper">
+                        <img class="condition-icon" src="{{condition.icon}}" data-tooltip="{{condition.label}}">
+                        {{#if condition.stackable}}<span class="condition-count">{{condition.count}}</span>{{/if}}
+                      </span>
+                    {{/each}}
+                    {{#if card.recuperating}}
+                      <span class="recuperate-marker" data-tooltip="{{localize 'WFRP4EPARTY.RecuperateMarkerTooltip'}}">
+                        <i class="fas fa-mug-hot"></i>
+                      </span>
+                    {{/if}}
+                  </div>
+                </div>
+                <div class="member-stats">
+                  <div class="member-test-stats">
+                    {{#each card.testTargets as |target|}}
+                      {{#if card.canRoll}}
+                        <a class="party-stat test-target" data-action="rollTestTarget" data-test-index="{{@index}}" data-tooltip="{{target.tooltip}}{{#if target.isFallback}} ({{localize 'WFRP4EPARTY.CharFallback'}}){{/if}}">
+                          <i class="fas {{target.icon}}"></i>
+                          <span class="value">{{target.value}}</span>
+                        </a>
+                      {{else}}
+                        <span class="party-stat test-target" data-tooltip="{{target.label}}{{#if target.isFallback}} ({{localize 'WFRP4EPARTY.CharFallback'}}){{/if}}">
+                          <i class="fas {{target.icon}}"></i>
+                          <span class="value">{{target.value}}</span>
+                        </span>
+                      {{/if}}
+                    {{/each}}
+                  </div>
+                  <div class="member-action-stats">
+                    {{#if card.canRest}}
+                      <a class="party-stat" data-action="restMember" data-tooltip="{{localize 'WFRP4EPARTY.RestTooltip'}}">
+                        <i class="fas fa-bed"></i>
+                      </a>
+                    {{else}}
+                      <span class="party-stat" data-tooltip="{{localize 'WFRP4EPARTY.RestTooltip'}}">
+                        <i class="fas fa-bed"></i>
+                      </span>
+                    {{/if}}
+                    {{#if @root.isGM}}
+                      <a class="party-stat" data-action="toggleRecuperate" data-tooltip="{{localize 'WFRP4EPARTY.ToggleRecuperateTooltip'}}">
+                        <i class="fas {{#if card.recuperating}}fa-mug-hot{{else}}fa-fire{{/if}}"></i>
+                      </a>
+                    {{/if}}
+                  </div>
+                </div>
+              </div>
+              <div class="char-strip characteristic-grid">
+                {{#each card.characteristics as |char|}}
+                  <div class="header" data-tooltip="{{configLookup "characteristics" char.key}}">{{localize (configLookup "characteristicsAbbrev" char.key)}}</div>
+                {{/each}}
+                {{#each card.characteristics as |char|}}
+                  <div class="value">{{char.value}}</div>
+                {{/each}}
+              </div>
+            </div>
+          </div>
+        {{/if}}
+      {{/each}}
+    </div>
+  </div>
+  {{/if}}
+</section>

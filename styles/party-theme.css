@@ -1,0 +1,1170 @@
+/* -------------------------------------------------------------------------
+   WFRP4e Party Sheet — visual theme
+
+   party.css owns structure and sizing. This file is deliberately loaded
+   afterwards and supplies the module's visual language: oxblood leather,
+   aged parchment, brass accents, and clearer interactive states.
+   ------------------------------------------------------------------------- */
+
+.wfrp4e.actor.sheet.application.party-sheet {
+  --party-ink: #251b17;
+  --party-ink-soft: #51473b;
+  --party-muted: #706756;
+  --party-oxblood: #5b2024;
+  --party-oxblood-dark: #2d1114;
+  --party-oxblood-light: #7d3033;
+  --party-brass: #a98949;
+  --party-brass-light: #dec989;
+  --party-parchment: rgba(244, 235, 202, 0.78);
+  --party-parchment-soft: rgba(255, 251, 230, 0.42);
+  --party-panel: rgba(246, 238, 205, 0.38);
+  --party-panel-strong: rgba(235, 222, 178, 0.58);
+  --party-line: rgba(73, 54, 35, 0.38);
+  --party-line-strong: rgba(73, 45, 27, 0.62);
+  --party-success: #486443;
+  --party-success-dark: #29402c;
+  --party-danger: #862f28;
+  --party-ice: #476a74;
+  --party-shadow: rgba(32, 20, 12, 0.3);
+  --party-button-shadow: rgba(16, 7, 5, 0.52);
+  color: var(--party-ink);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet section.tab {
+  scrollbar-color: var(--party-oxblood) rgba(58, 39, 26, 0.14);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet a:focus-visible,
+.wfrp4e.actor.sheet.application.party-sheet input:focus-visible,
+.wfrp4e.actor.sheet.application.party-sheet select:focus-visible,
+.wfrp4e.actor.sheet.application.party-sheet summary:focus-visible {
+  outline: 2px solid var(--party-brass);
+  outline-offset: 2px;
+}
+
+/* Header ----------------------------------------------------------------- */
+
+.wfrp4e.actor.sheet.application.party-sheet .party-header-content {
+  gap: 1rem;
+  margin: 0.25rem 0.75rem 0.65rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--party-line-strong);
+  border-radius: 4px;
+  background:
+    linear-gradient(100deg, rgba(77, 49, 27, 0.08), transparent 35%),
+    linear-gradient(rgba(255, 252, 229, 0.18), rgba(171, 145, 94, 0.08));
+  box-shadow:
+    0 1px 0 rgba(255, 251, 222, 0.65) inset,
+    0 0 0 1px rgba(255, 248, 211, 0.2) inset,
+    0 3px 8px var(--party-shadow);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-header-content img.profile {
+  width: 11.25rem;
+  height: 11.25rem;
+  filter: drop-shadow(0 4px 4px rgba(25, 14, 7, 0.42));
+  transition: filter 120ms ease, transform 120ms ease;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-header-content img.profile:hover {
+  filter: drop-shadow(0 4px 6px rgba(25, 14, 7, 0.58)) brightness(1.06);
+  transform: translateY(-1px);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-summary-box {
+  padding: 0.75rem 0.9rem 0.65rem;
+  border-color: var(--party-line-strong);
+  background:
+    linear-gradient(90deg, rgba(255, 251, 226, 0.38), rgba(223, 207, 159, 0.18)),
+    rgba(235, 225, 190, 0.2);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 238, 0.78) inset,
+    0 0 12px rgba(67, 43, 23, 0.12) inset;
+  color: var(--party-ink);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-summary-box .header-fields {
+  margin-bottom: 0.5rem;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-summary-box .header-fields input[name="name"] {
+  height: 2.75rem;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--party-brass);
+  border-radius: 3px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 45%),
+    linear-gradient(90deg, var(--party-oxblood-dark), #3b171a 55%, var(--party-oxblood-dark));
+  box-shadow:
+    0 0 0 1px rgba(26, 8, 8, 0.72) inset,
+    0 1px 0 rgba(238, 211, 139, 0.2) inset,
+    0 2px 4px rgba(27, 13, 8, 0.3);
+  color: #f2e5bb;
+  font-family: var(--header-font, serif);
+  font-size: 1.45rem;
+  letter-spacing: 0.025em;
+  text-shadow: 0 1px 1px #160809;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-summary-box .header-fields input[name="name"]::placeholder {
+  color: rgba(242, 229, 187, 0.58);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-summary-box .header-fields input[name="name"]:focus {
+  border: 1px solid var(--party-brass-light);
+  box-shadow:
+    0 0 0 1px rgba(26, 8, 8, 0.72) inset,
+    0 0 8px rgba(169, 137, 73, 0.54);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-summary-box .header-fields input[name="name"][readonly] {
+  cursor: default;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-summary-box .summary-item {
+  min-height: 1.45rem;
+  padding: 0 0.15rem;
+  border-bottom: 1px dotted rgba(76, 58, 39, 0.24);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-summary-box .summary-item:last-of-type {
+  border-bottom: 0;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-summary-box .summary-item .label {
+  color: var(--party-ink-soft);
+  font-weight: 600;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-summary-box .summary-item > span:last-child {
+  color: var(--party-oxblood-dark);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-summary-box .warning,
+.wfrp4e.actor.sheet.application.party-sheet .member-main > .warning {
+  padding: 0.25rem 0.45rem;
+  border-left: 3px solid var(--party-danger);
+  background: rgba(134, 47, 40, 0.1);
+  color: #681e1b;
+  font-weight: 700;
+}
+
+/* Tabs ------------------------------------------------------------------- */
+
+.wfrp4e.actor.sheet.application.party-sheet nav.sheet-tabs.tabs {
+  gap: 0;
+  min-height: 2.35rem;
+  margin: 0 0.75rem 0.45rem;
+  padding: 3px;
+  border: 1px solid var(--party-line-strong);
+  border-radius: 3px;
+  background: rgba(62, 43, 29, 0.18);
+  box-shadow:
+    0 1px 0 rgba(255, 251, 222, 0.62) inset,
+    0 2px 5px rgba(38, 23, 13, 0.18);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet nav.sheet-tabs.tabs > a {
+  height: 1.95rem;
+  padding: 0 0.65rem;
+  border: 0;
+  border-right: 1px solid rgba(72, 48, 30, 0.28);
+  border-image: none;
+  background: linear-gradient(180deg, rgba(255, 253, 229, 0.48), rgba(204, 187, 139, 0.2));
+  box-shadow: none;
+  color: var(--party-ink-soft);
+  line-height: 1.95rem;
+  text-shadow: 0 1px rgba(255, 255, 234, 0.62);
+  transition: background 120ms ease, color 120ms ease, box-shadow 120ms ease;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet nav.sheet-tabs.tabs > a:last-child {
+  border-right: 0;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet nav.sheet-tabs.tabs > a:hover {
+  background: rgba(255, 248, 213, 0.58);
+  color: var(--party-oxblood);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet nav.sheet-tabs.tabs > a.active {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 48%),
+    linear-gradient(90deg, var(--party-oxblood-dark), var(--party-oxblood), var(--party-oxblood-dark));
+  box-shadow:
+    0 0 0 1px rgba(222, 201, 137, 0.34) inset,
+    0 1px 3px rgba(26, 11, 8, 0.45);
+  color: #f0dfac;
+  text-shadow: 0 1px 1px #21090b;
+}
+
+/* Shared action controls ------------------------------------------------- */
+
+.wfrp4e.actor.sheet.application.party-sheet a.group-roll {
+  min-height: 2.1rem;
+  padding: 0.34rem 0.65rem;
+  border: 1px solid var(--party-brass);
+  border-radius: 3px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 45%),
+    linear-gradient(90deg, var(--party-oxblood-dark), var(--party-oxblood), var(--party-oxblood-dark));
+  box-shadow:
+    0 0 0 1px rgba(24, 8, 7, 0.74) inset,
+    0 1px 0 rgba(242, 217, 148, 0.16) inset,
+    0 2px 4px var(--party-button-shadow);
+  color: #f1e1ae;
+  font-family: var(--header-font, serif);
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  text-shadow: 0 1px 1px #1b0809;
+  transition: filter 110ms ease, transform 110ms ease, box-shadow 110ms ease;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet a.group-roll i {
+  color: var(--party-brass-light);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet a.group-roll:hover {
+  filter: brightness(1.14) saturate(1.04);
+  transform: translateY(-1px);
+  box-shadow:
+    0 0 0 1px rgba(24, 8, 7, 0.74) inset,
+    0 0 0 1px rgba(222, 201, 137, 0.22),
+    0 3px 6px var(--party-button-shadow);
+  color: #fff0c0;
+  text-shadow: 0 1px 1px #1b0809;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet a.group-roll:active {
+  filter: brightness(0.95);
+  transform: translateY(1px);
+  box-shadow: 0 2px 5px rgba(15, 5, 4, 0.62) inset;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet a.group-roll.make-camp,
+.wfrp4e.actor.sheet.application.party-sheet a.group-roll.rest-party {
+  border-color: #9b8b5e;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 45%),
+    linear-gradient(90deg, #343a2c, #566047, #343a2c);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet a.group-roll.exposure-test {
+  border-color: #9cb3b4;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 45%),
+    linear-gradient(90deg, #263d44, var(--party-ice), #263d44);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet a.group-roll.journey-log-reset {
+  border-color: #b96d60;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 45%),
+    linear-gradient(90deg, #421412, var(--party-danger), #421412);
+}
+
+/* Group rolls ------------------------------------------------------------ */
+
+.wfrp4e.actor.sheet.application.party-sheet .group-rolls {
+  margin: 0.15rem 0.75rem 0.55rem;
+  padding: 0.7rem 0.65rem 0.65rem;
+  border: 1px solid var(--party-line);
+  border-radius: 3px;
+  background: var(--party-panel);
+  box-shadow: 0 1px 0 rgba(255, 253, 231, 0.58) inset;
+  color: var(--party-ink);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .group-rolls-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--party-ink);
+  font-family: var(--header-font, serif);
+  font-size: 1.2rem;
+  letter-spacing: 0.035em;
+  margin: 0 0 0.35rem;
+  padding: 0.2rem 0.35rem 0.3rem;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .group-rolls-title::before,
+.wfrp4e.actor.sheet.application.party-sheet .group-rolls-title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--party-brass), transparent);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .group-rolls-buttons {
+  gap: 0.45rem;
+  margin-top: 0.25rem;
+}
+
+/* Member cards ----------------------------------------------------------- */
+
+.wfrp4e.actor.sheet.application.party-sheet .card-grid {
+  gap: 0.65rem;
+  padding: 0.1rem 0.75rem 0.8rem;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .member-card {
+  position: relative;
+  gap: 0.85rem;
+  padding: 0.65rem 0.7rem;
+  border: 1px solid var(--party-line-strong);
+  border-left: 4px solid var(--party-oxblood);
+  border-radius: 3px;
+  background:
+    linear-gradient(100deg, rgba(112, 73, 41, 0.08), transparent 32%),
+    var(--party-parchment-soft);
+  box-shadow:
+    0 1px 0 rgba(255, 254, 235, 0.72) inset,
+    0 2px 6px rgba(49, 30, 17, 0.2);
+  color: var(--party-ink);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .member-card:hover {
+  border-color: rgba(91, 47, 29, 0.72);
+  border-left-color: var(--party-brass);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .member-card.vacant,
+.wfrp4e.actor.sheet.application.party-sheet .member-card.empty {
+  min-height: 3.25rem;
+  border-style: dashed;
+  border-left-color: var(--party-muted);
+  background: rgba(237, 227, 195, 0.24);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .member-portrait {
+  width: 7.6rem;
+  height: 7.6rem;
+  margin: 0.2rem;
+  border: 2px solid var(--party-brass);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 3px var(--party-oxblood-dark),
+    0 0 0 4px rgba(218, 193, 126, 0.62),
+    0 4px 8px rgba(30, 16, 8, 0.42);
+  transition: filter 120ms ease, transform 120ms ease;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .member-portrait:hover {
+  filter: brightness(1.09);
+  transform: scale(1.015);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .member-body {
+  gap: 0.45rem;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .member-main {
+  flex: 1 1 auto;
+  gap: 0.45rem;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .member-topline {
+  min-height: 1.7rem;
+  padding-bottom: 0.15rem;
+  border-bottom: 1px solid rgba(78, 57, 36, 0.22);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .member-topline .member-name {
+  color: var(--party-ink);
+  font-family: var(--header-font, serif);
+  font-size: 1.35rem;
+  letter-spacing: 0.015em;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .member-topline .list-control,
+.wfrp4e.actor.sheet.application.party-sheet .member-card.vacant .list-control {
+  display: grid;
+  width: 1.6rem;
+  height: 1.6rem;
+  margin-left: auto;
+  border: 1px solid rgba(94, 41, 34, 0.48);
+  border-radius: 50%;
+  place-items: center;
+  color: #752821;
+  transition: background 100ms ease, color 100ms ease, transform 100ms ease;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .member-topline .list-control:hover,
+.wfrp4e.actor.sheet.application.party-sheet .member-card.vacant .list-control:hover {
+  background: var(--party-danger);
+  color: #f6e8c4;
+  text-shadow: none;
+  transform: rotate(5deg);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .wounds-bar {
+  height: 1.4rem;
+  overflow: hidden;
+  border: 1px solid rgba(61, 35, 24, 0.78);
+  border-radius: 2px;
+  background:
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.035) 0 6px, transparent 6px 12px),
+    #4b1c1a;
+  box-shadow:
+    0 2px 4px rgba(16, 6, 4, 0.45) inset,
+    0 1px 0 rgba(255, 250, 217, 0.38);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .wounds-bar-fill {
+  --wounds-bar-color: var(--party-success);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 52%),
+    linear-gradient(90deg, var(--party-success-dark), var(--wounds-bar-color));
+  box-shadow:
+    0 0 0 1px rgba(223, 208, 155, 0.12) inset,
+    2px 0 5px rgba(11, 24, 13, 0.36);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .wounds-bar-text {
+  color: #fff1c5;
+  font-size: 0.98rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35rem;
+  text-shadow: 0 1px 2px #130807, 0 0 3px #130807;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .member-pools {
+  display: grid;
+  grid-template-columns: auto min-content auto min-content auto min-content;
+  gap: 0 0.28rem;
+  align-items: baseline;
+  justify-content: start;
+  color: var(--party-ink-soft);
+  font-size: 0.78rem;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .member-pools .label {
+  color: var(--party-muted);
+  font-variant: small-caps;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .member-pools .value {
+  min-width: 0.8rem;
+  color: var(--party-oxblood-dark);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .member-stats {
+  flex: 0 0 12.75rem;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.3rem 0.4rem 0.7rem;
+  border-left-color: var(--party-line);
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(90deg, rgba(107, 78, 45, 0.07), transparent);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .member-test-stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(2rem, 1fr));
+  gap: 0.15rem;
+  width: 100%;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .member-action-stats {
+  display: flex;
+  justify-content: center;
+  gap: 1.1rem;
+  width: 100%;
+  padding-top: 0.35rem;
+  border-top: 1px dotted rgba(73, 54, 35, 0.3);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-stat {
+  min-width: 2rem;
+  min-height: 2.55rem;
+  justify-content: center;
+  gap: 0.25rem;
+  border-radius: 3px;
+  color: var(--party-ink-soft);
+  transition: background 100ms ease, color 100ms ease, transform 100ms ease;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-stat i {
+  color: #756c51;
+  font-size: 1.25rem;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-stat .value {
+  color: var(--party-ink);
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .member-action-stats .party-stat {
+  min-width: 2.75rem;
+  min-height: 2rem;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet a.party-stat:hover {
+  background: rgba(91, 32, 36, 0.11);
+  color: var(--party-oxblood);
+  text-shadow: none;
+  transform: translateY(-1px);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet a.party-stat:hover i,
+.wfrp4e.actor.sheet.application.party-sheet a.party-stat:hover .value {
+  color: var(--party-oxblood);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .condition-row {
+  min-height: 1.65rem;
+  align-items: center;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .condition-icon {
+  border: 1px solid rgba(73, 50, 32, 0.52);
+  border-radius: 3px;
+  box-shadow: 0 1px 2px rgba(35, 19, 10, 0.3);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .condition-count {
+  min-width: 1.15rem;
+  border: 1px solid rgba(255, 230, 177, 0.72);
+  background: var(--party-danger);
+  color: #fff0c6;
+  font-weight: 700;
+  line-height: 1rem;
+  text-align: center;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .recuperate-marker i {
+  color: var(--party-success-dark);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .char-strip.characteristic-grid {
+  height: 3.15rem;
+  overflow: hidden;
+  border: 1px solid var(--party-line-strong);
+  border-right: 1px solid var(--party-line-strong);
+  border-radius: 2px;
+  background: rgba(255, 251, 229, 0.34);
+  line-height: 1.55rem;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .char-strip.characteristic-grid > * {
+  border-right: 1px solid rgba(73, 54, 35, 0.27);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .char-strip.characteristic-grid > *:nth-child(10n) {
+  border-right: 0;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .char-strip.characteristic-grid .header {
+  border-bottom: 1px solid var(--party-line);
+  background: rgba(91, 32, 36, 0.1);
+  box-shadow: 0 -4px 8px rgba(55, 26, 15, 0.1) inset;
+  color: var(--party-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .char-strip.characteristic-grid .value {
+  background: rgba(255, 251, 232, 0.3);
+  color: var(--party-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Inventory -------------------------------------------------------------- */
+
+.wfrp4e.actor.sheet.application.party-sheet .party-inventory-search {
+  position: relative;
+  margin: 0.15rem 0.75rem 0.55rem;
+  padding: 0;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-inventory-search > i {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 0.75rem;
+  color: var(--party-oxblood);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-inventory-search input[type="search"] {
+  width: 100%;
+  height: 2.5rem;
+  padding: 0.25rem 2.1rem 0.25rem 2.35rem;
+  border: 1px solid var(--party-line-strong);
+  border-radius: 3px;
+  background: rgba(255, 252, 231, 0.54);
+  box-shadow:
+    0 2px 6px rgba(48, 29, 16, 0.13) inset,
+    0 1px 0 rgba(255, 255, 239, 0.62);
+  color: var(--party-ink);
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-inventory-search input[type="search"]::placeholder {
+  color: rgba(78, 67, 53, 0.7);
+  font-style: italic;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-inventory-search input[type="search"]:focus {
+  border: 1px solid var(--party-brass);
+  box-shadow:
+    0 2px 5px rgba(48, 29, 16, 0.12) inset,
+    0 0 0 2px rgba(169, 137, 73, 0.18);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-money-summary {
+  margin: 0 0.75rem 0.65rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--party-line-strong);
+  border-radius: 3px;
+  background:
+    linear-gradient(90deg, rgba(91, 32, 36, 0.12), transparent 45%),
+    rgba(238, 227, 192, 0.42);
+  box-shadow: 0 1px 0 rgba(255, 254, 235, 0.66) inset;
+  color: var(--party-ink);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-money-total .label {
+  color: var(--party-muted);
+  font-variant: small-caps;
+  font-weight: 700;
+  letter-spacing: 0.035em;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-money-total .value {
+  margin-left: 0.35rem;
+  color: var(--party-oxblood-dark);
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-money-summary .list-controls {
+  gap: 0.4rem;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-money-summary .list-controls a {
+  padding: 0.28rem 0.6rem;
+  border: 1px solid var(--party-brass);
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--party-oxblood), var(--party-oxblood-dark));
+  color: #efdfae;
+  font-size: 0.9rem;
+  text-shadow: 0 1px 1px #1a0808;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-money-summary .list-controls a:hover {
+  filter: brightness(1.14);
+  color: #fff0c1;
+  text-shadow: 0 1px 1px #1a0808;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-inventory-list {
+  padding: 0 0.75rem 0.8rem;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-inventory-list .sheet-list {
+  margin-bottom: 0.65rem;
+  border-radius: 3px;
+  box-shadow: 0 2px 5px rgba(47, 29, 16, 0.14);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-inventory-list .sheet-list .list-header {
+  min-height: 2rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--party-line-strong);
+  border-radius: 3px 3px 0 0;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 50%),
+    linear-gradient(90deg, var(--party-oxblood-dark), var(--party-oxblood), var(--party-oxblood-dark));
+  box-shadow: 0 1px 0 rgba(230, 205, 139, 0.14) inset;
+  color: #efdfae;
+  font-family: var(--header-font, serif);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-inventory-list .sheet-list .list-header a,
+.wfrp4e.actor.sheet.application.party-sheet .party-inventory-list .sheet-list .list-header .small {
+  color: #efdfae;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-inventory-list .sheet-list .list-content {
+  border-color: var(--party-line-strong);
+  background: rgba(255, 251, 231, 0.24);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-inventory-list .sheet-list .list-row {
+  min-height: 2.65rem;
+  border-bottom: 1px solid rgba(75, 54, 34, 0.18);
+  background: rgba(255, 252, 232, 0.32);
+  box-shadow: none;
+  color: var(--party-ink);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-inventory-list .sheet-list .list-row:nth-child(even) {
+  background: rgba(177, 151, 102, 0.1);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-inventory-list .sheet-list .list-row:hover {
+  background: rgba(169, 137, 73, 0.16);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-inventory-list .sheet-list .list-row .row-content {
+  padding: 0.25rem 0.45rem;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-inventory-list .list-name img {
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--party-line-strong);
+  border-radius: 2px;
+  box-shadow: 0 1px 2px rgba(39, 23, 12, 0.25);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-inventory-list .list-name .label {
+  color: var(--party-ink);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-inventory-list .list-control {
+  display: grid;
+  width: 1.8rem;
+  height: 1.8rem;
+  border: 1px solid var(--party-line-strong);
+  border-radius: 50%;
+  place-items: center;
+  background: rgba(255, 250, 220, 0.34);
+  color: var(--party-oxblood);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-inventory-list .list-control:hover {
+  border-color: var(--party-brass);
+  background: var(--party-oxblood);
+  color: #f2e2b2;
+  text-shadow: none;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-inventory-empty {
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px dashed var(--party-line);
+  color: var(--party-muted);
+  font-style: italic;
+  text-align: center;
+}
+
+/* Journey --------------------------------------------------------------- */
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-panel {
+  gap: 0.7rem;
+  padding: 0.15rem 0.75rem 0.8rem;
+  color: var(--party-ink);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-section {
+  position: relative;
+  padding: 0.65rem 0.75rem 0.7rem;
+  border: 1px solid var(--party-line);
+  border-left: 3px solid rgba(91, 32, 36, 0.66);
+  border-radius: 3px;
+  background: var(--party-panel);
+  box-shadow:
+    0 1px 0 rgba(255, 254, 234, 0.62) inset,
+    0 2px 5px rgba(45, 27, 15, 0.14);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-section-title {
+  margin: 0 0 0.55rem;
+  padding: 0 0 0.28rem;
+  border-bottom: 1px solid rgba(87, 59, 35, 0.28);
+  color: var(--party-oxblood-dark);
+  font-family: var(--header-font, serif);
+  font-size: 1.18rem;
+  font-variant: small-caps;
+  font-weight: 700;
+  letter-spacing: 0.035em;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet summary.journey-section-title {
+  cursor: pointer;
+  list-style-position: inside;
+  user-select: none;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet summary.journey-section-title::marker {
+  color: var(--party-oxblood);
+  font-size: 0.85em;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet details.journey-config:not([open]) > .journey-section-title {
+  margin-bottom: 0;
+  border-bottom-color: transparent;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-notice {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid rgba(125, 103, 60, 0.48);
+  border-left: 4px solid var(--party-brass);
+  border-radius: 3px;
+  background: rgba(190, 158, 84, 0.13);
+  color: var(--party-ink-soft);
+  font-size: 0.9rem;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-config-fields {
+  gap: 0.6rem;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-config-fields .form-group {
+  gap: 0.3rem;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-config-fields .form-group > label,
+.wfrp4e.actor.sheet.application.party-sheet .journey-weather-box .form-group > label,
+.wfrp4e.actor.sheet.application.party-sheet .journey-custom-tables .form-group > label {
+  height: auto;
+  padding: 0 0.15rem;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--party-muted);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-variant: small-caps;
+  font-weight: 700;
+  letter-spacing: 0.045em;
+  line-height: 1.1;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-panel input[type="text"],
+.wfrp4e.actor.sheet.application.party-sheet .journey-panel input[type="number"],
+.wfrp4e.actor.sheet.application.party-sheet .journey-panel select,
+.wfrp4e.actor.sheet.application.party-sheet .journey-config-fields .journey-status-value,
+.wfrp4e.actor.sheet.application.party-sheet .journey-config-fields .journey-status-value-readonly {
+  box-sizing: border-box;
+  height: 2.35rem;
+  min-height: 2.35rem;
+  max-height: 2.35rem;
+  margin: 0;
+  padding: 0.25rem 0.65rem;
+  border: 1px solid var(--party-line-strong);
+  border-radius: 3px;
+  background-color: rgba(255, 251, 226, 0.62);
+  box-shadow:
+    0 2px 5px rgba(47, 28, 14, 0.12) inset,
+    0 1px 0 rgba(255, 255, 241, 0.58);
+  color: var(--party-ink);
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.8rem;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-panel select {
+  padding-right: 1.8rem;
+  background-color: rgba(255, 251, 226, 0.62);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--party-oxblood) 50%),
+    linear-gradient(135deg, var(--party-oxblood) 50%, transparent 50%);
+  background-position: right 0.8rem center, right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 0.35rem 0.35rem, 0.35rem 0.35rem;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-panel select option {
+  background: #eee2bd;
+  color: var(--party-ink);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-panel input:focus,
+.wfrp4e.actor.sheet.application.party-sheet .journey-panel select:focus {
+  border: 1px solid var(--party-brass);
+  box-shadow: 0 0 0 2px rgba(169, 137, 73, 0.18);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-config-fields .journey-status-value,
+.wfrp4e.actor.sheet.application.party-sheet .journey-config-fields .journey-status-value-readonly {
+  display: flex;
+  align-items: center;
+  border-style: solid;
+  background:
+    linear-gradient(90deg, rgba(91, 32, 36, 0.1), transparent),
+    rgba(238, 225, 187, 0.46);
+  box-shadow: 0 1px 3px rgba(49, 29, 15, 0.1) inset;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-hint {
+  margin: 0.55rem 0 0.2rem;
+  padding: 0.35rem 0.55rem;
+  border-left: 2px solid var(--party-brass);
+  background: rgba(255, 250, 222, 0.24);
+  color: var(--party-muted);
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-lifecycle-buttons,
+.wfrp4e.actor.sheet.application.party-sheet .journey-encounter-buttons,
+.wfrp4e.actor.sheet.application.party-sheet .journey-log-buttons {
+  gap: 0.5rem;
+  margin-top: 0.55rem;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-lifecycle-buttons .group-roll,
+.wfrp4e.actor.sheet.application.party-sheet .journey-encounter-buttons .group-roll {
+  flex: 1 1 9rem;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-weather-value {
+  display: inline-block;
+  margin: 0 0 0.45rem;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid rgba(71, 106, 116, 0.5);
+  border-radius: 2px;
+  background: rgba(71, 106, 116, 0.12);
+  color: #263f46;
+  font-size: 1.05rem;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-weather-effects,
+.wfrp4e.actor.sheet.application.party-sheet .journey-exposure-reminder {
+  padding: 0.35rem 0.5rem;
+  border-left: 2px solid var(--party-ice);
+  background: rgba(71, 106, 116, 0.08);
+  color: var(--party-ink-soft);
+  line-height: 1.35;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-encounter-entry {
+  margin-top: 0.5rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid rgba(79, 55, 34, 0.2);
+  border-left: 3px solid var(--party-brass);
+  background: rgba(255, 250, 225, 0.3);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-encounter-text {
+  margin: 0.2rem 0 0 0.25rem;
+  color: var(--party-muted);
+  line-height: 1.35;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-endeavour-table {
+  overflow: hidden;
+  margin: 0.55rem 0;
+  border: 1px solid var(--party-line-strong);
+  border-radius: 3px;
+  background: rgba(255, 252, 232, 0.25);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-endeavour-table thead th {
+  padding: 0.45rem 0.55rem;
+  border-right: 1px solid rgba(230, 207, 148, 0.18);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 50%),
+    var(--party-oxblood-dark);
+  color: #efdfae;
+  font-family: var(--header-font, serif);
+  font-size: 0.9rem;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-endeavour-table tbody tr {
+  border-bottom: 1px solid rgba(76, 55, 35, 0.18);
+  background: rgba(255, 252, 232, 0.28);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-endeavour-table tbody tr:nth-child(even) {
+  background: rgba(169, 137, 73, 0.09);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-endeavour-table td {
+  padding: 0.45rem 0.45rem;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-endeavour-table td:first-child {
+  font-weight: 600;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-endeavour-table select {
+  width: 100%;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-endeavour-desc {
+  margin-top: 0.35rem;
+  color: var(--party-muted);
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-endeavour-modifier {
+  width: 4rem;
+  text-align: center;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-flag {
+  display: inline-block;
+  margin: 0.3rem 0.25rem 0 0;
+  padding: 0.2rem 0.45rem;
+  border: 1px solid rgba(72, 100, 67, 0.4);
+  border-radius: 2px;
+  background: rgba(72, 100, 67, 0.11);
+  color: var(--party-success-dark);
+  font-size: 0.82rem;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .group-rolls.journey-camp-rest {
+  margin: 0;
+  border-color: var(--party-line);
+  background: rgba(72, 100, 67, 0.07);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-custom-tables summary,
+.wfrp4e.actor.sheet.application.party-sheet .journey-log summary {
+  color: var(--party-oxblood-dark);
+  font-family: var(--header-font, serif);
+  font-size: 1.08rem;
+  letter-spacing: 0.025em;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-custom-tables summary::marker,
+.wfrp4e.actor.sheet.application.party-sheet .journey-log summary::marker {
+  color: var(--party-oxblood);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-log-entry {
+  padding: 0.28rem 0.35rem;
+  border-bottom: 1px dotted rgba(75, 55, 35, 0.22);
+  color: var(--party-ink-soft);
+  line-height: 1.35;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-log-entry:first-of-type {
+  margin-top: 0.4rem;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-log-empty {
+  margin-top: 0.4rem;
+  color: var(--party-muted);
+  font-style: italic;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-log-buttons .group-roll {
+  flex: 1 1 12rem;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-custom-tables .form-group {
+  display: grid;
+  grid-template-columns: minmax(10rem, 0.5fr) 1fr;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.55rem;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .journey-custom-tables .form-group > label {
+  font-size: 0.82rem;
+}
+
+/* Module dialogs --------------------------------------------------------- */
+
+.wfrp4e-party-camp {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid rgba(76, 54, 33, 0.65);
+  border-radius: 3px;
+  background:
+    linear-gradient(110deg, rgba(255, 255, 246, 0.42), transparent 48%),
+    #e7dfbf;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 239, 0.72) inset,
+    0 3px 8px rgba(21, 12, 7, 0.42);
+  color: #251b17;
+}
+
+.wfrp4e-party-camp .camp-hint {
+  margin: 0 0 0.65rem;
+  padding: 0.55rem 0.65rem;
+  border-left: 3px solid #a98949;
+  background: rgba(169, 137, 73, 0.14);
+  color: #3f372e;
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+.wfrp4e-party-camp .camp-campers {
+  gap: 0.45rem;
+}
+
+.wfrp4e-party-camp .camp-camper {
+  min-height: 2.65rem;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid rgba(73, 54, 35, 0.25);
+  border-radius: 3px;
+  background: rgba(255, 252, 232, 0.58);
+}
+
+.wfrp4e-party-camp .camp-camper:nth-child(even) {
+  background: rgba(213, 196, 151, 0.42);
+}
+
+.wfrp4e-party-camp .camp-name {
+  flex: 0 0 8rem;
+  color: #251b17;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.wfrp4e-party-camp .camp-skill-select,
+.wfrp4e-party-camp input[type="number"],
+.wfrp4e-party-camp input[type="text"] {
+  min-height: 2rem;
+  border: 1px solid rgba(73, 54, 35, 0.55);
+  border-radius: 3px;
+  background: #f5eed2;
+  color: #251b17;
+}
+
+.wfrp4e-party-camp .camp-skill-select {
+  flex: 1 1 12rem;
+  width: auto;
+  margin-left: 0;
+}
+
+.wfrp4e-party-camp .camp-pool,
+.wfrp4e-party-camp .camp-max,
+.wfrp4e-party-camp .camp-alloc td {
+  color: #251b17;
+}
+
+.wfrp4e-party-camp .camp-alloc th {
+  padding: 0.4rem;
+  background: #351417;
+  color: #efdfae;
+}
+
+.wfrp4e-party-camp .camp-alloc td {
+  padding: 0.35rem 0.4rem;
+  border-bottom: 1px solid rgba(73, 54, 35, 0.18);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wfrp4e.actor.sheet.application.party-sheet *,
+  .wfrp4e.actor.sheet.application.party-sheet *::before,
+  .wfrp4e.actor.sheet.application.party-sheet *::after {
+    scroll-behavior: auto;
+    transition-duration: 0.01ms !important;
+  }
+}

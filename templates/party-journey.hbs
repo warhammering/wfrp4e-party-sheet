@@ -1,0 +1,262 @@
+<section class="tab {{tab.cssClass}}" data-group="primary" data-tab="{{tab.id}}">
+  {{#if journey}}
+  <div class="journey-panel">
+
+    {{#unless journey.eisActive}}
+    <div class="journey-notice">{{localize "WFRP4EPARTY.JourneySimpleModeNotice"}}</div>
+    {{/unless}}
+
+    <details class="journey-section journey-config" open>
+      <summary class="journey-section-title">{{localize "WFRP4EPARTY.JourneyConfigTitle"}}</summary>
+      <div class="journey-config-fields">
+        <div class="form-group journey-field-destination">
+          <label data-tooltip="{{localize 'WFRP4EPARTY.JourneyDestinationTooltip'}}">{{localize "WFRP4EPARTY.JourneyDestination"}}</label>
+          {{#if journey.isGM}}
+            <input type="text" name="system.journey.config.destination" value="{{journey.config.destination}}" data-tooltip="{{localize 'WFRP4EPARTY.JourneyDestinationTooltip'}}"/>
+          {{else}}
+            <div class="journey-status-value-readonly" data-tooltip="{{localize 'WFRP4EPARTY.JourneyDestinationTooltip'}}">{{journey.config.destination}}</div>
+          {{/if}}
+        </div>
+        <div class="form-group journey-field-stages">
+          <label data-tooltip="{{localize 'WFRP4EPARTY.JourneyTotalStagesTooltip'}}">{{localize "WFRP4EPARTY.JourneyTotalStages"}}</label>
+          {{#if journey.isGM}}
+            <input type="number" name="system.journey.config.totalStages" value="{{journey.config.totalStages}}" min="1" step="1" data-tooltip="{{localize 'WFRP4EPARTY.JourneyTotalStagesTooltip'}}"/>
+          {{else}}
+            <div class="journey-status-value-readonly" data-tooltip="{{localize 'WFRP4EPARTY.JourneyTotalStagesTooltip'}}">{{journey.config.totalStages}}</div>
+          {{/if}}
+        </div>
+        <div class="form-group journey-field-season">
+          <label data-tooltip="{{localize 'WFRP4EPARTY.JourneySeasonTooltip'}}">{{localize "WFRP4EPARTY.JourneySeason"}}</label>
+          {{#if journey.isGM}}
+            <select name="system.journey.config.season" data-tooltip="{{localize 'WFRP4EPARTY.JourneySeasonTooltip'}}">
+              {{#each journey.seasonOptions as |opt|}}
+                <option value="{{opt.key}}" {{#if opt.selected}}selected{{/if}}>{{opt.label}}</option>
+              {{/each}}
+            </select>
+          {{else}}
+            {{#each journey.seasonOptions as |opt|}}
+              {{#if opt.selected}}<div class="journey-status-value-readonly" data-tooltip="{{localize 'WFRP4EPARTY.JourneySeasonTooltip'}}">{{opt.label}}</div>{{/if}}
+            {{/each}}
+          {{/if}}
+        </div>
+        <div class="form-group journey-field-status">
+          <label data-tooltip="{{localize 'WFRP4EPARTY.JourneyStatusTooltip'}}">{{localize "WFRP4EPARTY.JourneyStatus"}}</label>
+          <span class="journey-status-value" data-tooltip="{{localize 'WFRP4EPARTY.JourneyStatusTooltip'}}">{{journey.statusLabel}}{{#if journey.showCurrentStage}} — {{localize "WFRP4EPARTY.JourneyCurrentStage"}}: {{journey.config.currentStage}} / {{journey.config.totalStages}}{{/if}}</span>
+        </div>
+      </div>
+      {{#if journey.isGM}}
+      <div class="journey-hint">{{journey.hintText}}</div>
+      <div class="journey-lifecycle-buttons">
+        {{#if journey.canStart}}
+          <a class="group-roll" data-action="startJourney">{{localize "WFRP4EPARTY.JourneyStartButton"}}</a>
+        {{/if}}
+        {{#if journey.canAdvance}}
+          <a class="group-roll" data-action="advanceStage">{{localize "WFRP4EPARTY.JourneyAdvanceButton"}}</a>
+        {{/if}}
+        {{#if journey.eisActive}}
+          {{#if journey.canAdvance}}
+            <a class="group-roll" data-action="rollNavigationReduction">{{localize "WFRP4EPARTY.JourneyNavigationReductionButton"}}</a>
+          {{/if}}
+        {{/if}}
+        {{#if journey.canEnd}}
+          <a class="group-roll" data-action="endJourney">{{localize "WFRP4EPARTY.JourneyEndButton"}}</a>
+        {{/if}}
+      </div>
+      {{/if}}
+    </details>
+
+    {{#if journey.stageRecord}}
+
+    <div class="journey-section journey-weather-box">
+      <div class="journey-section-title">{{localize "WFRP4EPARTY.JourneyStagePanelTitle"}} — {{journey.stageRecord.stageNumber}}: {{localize "WFRP4EPARTY.JourneyWeather"}}</div>
+      {{#if journey.eisActive}}
+        <div class="journey-weather-value"><strong>{{#if journey.stageRecord.weather}}{{journey.stageRecord.weather}}{{else}}{{localize "WFRP4EPARTY.JourneyWeatherUnknown"}}{{/if}}</strong></div>
+        {{#if journey.isGM}}{{#if journey.stageRecord.weatherEffects}}
+          <div class="journey-weather-effects">{{{journey.stageRecord.weatherEffects}}}</div>
+        {{/if}}{{/if}}
+        {{#if journey.isGM}}
+          <a class="group-roll" data-action="rollWeather" data-tooltip="{{localize 'WFRP4EPARTY.JourneyRollWeatherTooltip'}}">{{localize "WFRP4EPARTY.JourneyRollWeatherButton"}}</a>
+          {{#if (eq journey.stageRecord.weather "Snow")}}
+            <a class="group-roll" data-action="rollWeatherEndurance" data-band="Snow">{{localize "WFRP4EPARTY.JourneyWeatherEnduranceButton"}} (Snow)</a>
+          {{/if}}
+          {{#if (eq journey.stageRecord.weather "Blizzard")}}
+            <a class="group-roll" data-action="rollWeatherEndurance" data-band="Blizzard">{{localize "WFRP4EPARTY.JourneyWeatherEnduranceButton"}} (Blizzard)</a>
+          {{/if}}
+          {{#if journey.exposureRuleOn}}
+            {{#if journey.stageRecord.exposureQualifies}}
+              <div class="journey-exposure-reminder">{{localize "WFRP4EPARTY.JourneyExposureReminder"}}</div>
+            {{/if}}
+          {{/if}}
+        {{/if}}
+      {{else}}
+        {{#if journey.isGM}}
+          <div class="form-group">
+            <label>{{localize "WFRP4EPARTY.JourneyWeatherLabel"}}</label>
+            <select data-action="setWeatherLabel">
+              <option value="">—</option>
+              {{#each journey.stageRecord.weatherLadder as |band|}}
+                <option value="{{band}}" {{#if (eq band ../journey.stageRecord.weather)}}selected{{/if}}>{{band}}</option>
+              {{/each}}
+            </select>
+          </div>
+        {{else}}
+          <div class="journey-weather-value"><strong>{{#if journey.stageRecord.weather}}{{journey.stageRecord.weather}}{{else}}{{localize "WFRP4EPARTY.JourneyWeatherUnknown"}}{{/if}}</strong></div>
+        {{/if}}
+      {{/if}}
+    </div>
+
+    {{#if journey.isGM}}
+    <div class="journey-section journey-encounters-box">
+      <div class="journey-section-title">{{localize "WFRP4EPARTY.JourneyEncounters"}}</div>
+      <div class="journey-encounter-buttons">
+        <a class="group-roll {{#if (eq journey.stageRecord.suggestedCategory 'positive')}}journey-suggested{{/if}}" data-action="drawEncounter" data-category="positive" {{#if (eq journey.stageRecord.suggestedCategory 'positive')}}data-tooltip="{{localize 'WFRP4EPARTY.JourneySuggestedTooltip'}}"{{/if}}>{{localize "WFRP4EPARTY.JourneyDrawPositive"}}</a>
+        <a class="group-roll {{#if (eq journey.stageRecord.suggestedCategory 'coincidental')}}journey-suggested{{/if}}" data-action="drawEncounter" data-category="coincidental" {{#if (eq journey.stageRecord.suggestedCategory 'coincidental')}}data-tooltip="{{localize 'WFRP4EPARTY.JourneySuggestedTooltip'}}"{{/if}}>{{localize "WFRP4EPARTY.JourneyDrawCoincidental"}}</a>
+        <a class="group-roll {{#if (eq journey.stageRecord.suggestedCategory 'harmful')}}journey-suggested{{/if}}" data-action="drawEncounter" data-category="harmful" {{#if (eq journey.stageRecord.suggestedCategory 'harmful')}}data-tooltip="{{localize 'WFRP4EPARTY.JourneySuggestedTooltip'}}"{{/if}}>{{localize "WFRP4EPARTY.JourneyDrawHarmful"}}</a>
+        <a class="group-roll" data-action="drawEncounterRandom">{{localize "WFRP4EPARTY.JourneyDrawRandom"}}</a>
+      </div>
+      {{#each journey.stageRecord.encounters as |enc|}}
+        <div class="journey-encounter-entry"><strong>{{enc.name}}</strong> ({{enc.category}})<div class="journey-encounter-text">{{{enc.text}}}</div></div>
+      {{/each}}
+    </div>
+    {{/if}}
+
+    {{#if journey.eisActive}}
+    <div class="journey-section journey-endeavours-box">
+      <div class="journey-section-title">{{localize "WFRP4EPARTY.JourneyEndeavours"}}</div>
+      <p class="journey-hint">{{localize "WFRP4EPARTY.JourneyEndeavourHint"}}</p>
+      <table class="journey-endeavour-table">
+        <thead><tr>
+          <th>{{localize "WFRP4EPARTY.JourneyEndeavourMemberCol"}}</th>
+          <th data-tooltip="{{localize 'WFRP4EPARTY.JourneyAssignEndeavourTooltip'}}">{{localize "WFRP4EPARTY.JourneyAssignEndeavour"}}</th>
+          {{#if journey.isGM}}
+            <th data-tooltip="{{localize 'WFRP4EPARTY.JourneyEndeavourModifierTooltip'}}">{{localize "WFRP4EPARTY.JourneyEndeavourModifier"}}</th>
+            <th>{{localize "WFRP4EPARTY.JourneyEndeavourResultCol"}}</th>
+          {{/if}}
+        </tr></thead>
+        <tbody>
+          {{#each journey.stageRecord.assignments as |a|}}
+            <tr>
+              <td>{{a.name}}</td>
+              <td>
+                {{#if a.canAssign}}
+                  <select data-action="assignEndeavour" data-member-id="{{a.memberId}}" {{#if a.resolved}}{{#unless @root.journey.isGM}}disabled{{/unless}}{{/if}}>
+                    <option value="">{{localize "WFRP4EPARTY.JourneyEndeavourNone"}}</option>
+                    {{#each a.options as |eo|}}
+                      <option value="{{eo.key}}" title="{{eo.description}}" {{#if eo.selected}}selected{{/if}} {{#if eo.disabled}}disabled{{/if}} {{#if eo.warn}}class="journey-option-warn"{{/if}}>{{eo.label}}</option>
+                    {{/each}}
+                  </select>
+                  {{#if a.skillOptions}}
+                    <select class="journey-endeavour-skill" data-action="setEndeavourSkill" data-member-id="{{a.memberId}}" {{#if a.resolved}}{{#unless @root.journey.isGM}}disabled{{/unless}}{{/if}}>
+                      <option value="">{{localize "WFRP4EPARTY.JourneyEndeavourSkillPlaceholder"}}</option>
+                      {{#each a.skillOptions as |sn|}}
+                        <option value="{{sn}}" {{#if (eq sn a.skillChoice)}}selected{{/if}}>{{sn}}</option>
+                      {{/each}}
+                    </select>
+                  {{/if}}
+                  {{#if a.endeavour}}
+                    <div class="journey-endeavour-desc">
+                      {{#each @root.journey.endeavourOptions as |eo|}}
+                        {{#if (eq eo.key a.endeavour)}}{{eo.description}}{{/if}}
+                      {{/each}}
+                    </div>
+                  {{/if}}
+                {{else}}
+                  <span class="journey-endeavour-readonly">{{#if a.endeavourLabel}}{{a.endeavourLabel}}{{else}}{{localize "WFRP4EPARTY.JourneyEndeavourNone"}}{{/if}}</span>
+                {{/if}}
+              </td>
+              {{#if @root.journey.isGM}}
+                <td>
+                  {{#if a.endeavour}}
+                    <input type="number" class="journey-endeavour-modifier" data-action="setEndeavourModifier" data-member-id="{{a.memberId}}" value="{{a.modifier}}" step="10" data-tooltip="{{localize 'WFRP4EPARTY.JourneyEndeavourModifierTooltip'}}"/>
+                  {{else}}
+                    <span class="journey-endeavour-modifier-empty">—</span>
+                  {{/if}}
+                </td>
+                <td>{{#if a.resolved}}{{#if a.success}}<i class="fas fa-check"></i>{{else if (eq a.success false)}}<i class="fas fa-xmark"></i>{{/if}} {{a.sl}} {{localize "WFRP4EPARTY.JourneyEndeavourSLAbbrev"}}{{else if a.endeavour}}{{localize "WFRP4EPARTY.JourneyEndeavourPending"}}{{/if}}</td>
+              {{/if}}
+            </tr>
+          {{/each}}
+        </tbody>
+      </table>
+      {{#if journey.isGM}}
+        <a class="group-roll" data-action="resolveEndeavours" data-tooltip="{{localize 'WFRP4EPARTY.JourneyResolveEndeavoursTooltip'}}">{{localize "WFRP4EPARTY.JourneyResolveEndeavoursButton"}}</a>
+      {{/if}}
+      {{#if journey.stageRecord.keepWatch}}<div class="journey-flag">{{localize "WFRP4EPARTY.JourneyKeepWatchFlag"}}</div>{{/if}}
+      {{#if journey.stageRecord.exposureWaived}}<div class="journey-flag">{{localize "WFRP4EPARTY.JourneyExposureWaivedFlag"}}</div>{{/if}}
+    </div>
+    {{/if}}
+
+    {{/if}}
+
+    {{#if journey.isGM}}
+    <div class="group-rolls journey-camp-rest">
+      <div class="group-rolls-buttons">
+        <a class="group-roll make-camp" data-action="makeCamp" data-tooltip="{{localize 'WFRP4EPARTY.MakeCampTooltip'}}">
+          <i class="fas fa-campground"></i><span>{{localize "WFRP4EPARTY.MakeCamp"}}</span>
+        </a>
+        <a class="group-roll rest-party" data-action="restParty" data-tooltip="{{localize 'WFRP4EPARTY.RestPartyTooltip'}}">
+          <i class="fas fa-bed"></i><span>{{localize "WFRP4EPARTY.RestParty"}}</span>
+        </a>
+        {{#if journey.eisActive}}
+          {{#if journey.exposureRuleOn}}
+            {{#if journey.stageRecord.exposureQualifies}}
+              <a class="group-roll exposure-test" data-action="rollExposureTest" data-tooltip="{{localize 'WFRP4EPARTY.JourneyExposureTestStripTooltip'}}">
+                <i class="fas fa-snowflake"></i><span>{{localize "WFRP4EPARTY.JourneyExposureTestButton"}}</span>
+              </a>
+            {{/if}}
+          {{/if}}
+        {{/if}}
+      </div>
+    </div>
+    {{/if}}
+
+    {{#if journey.isGM}}
+    {{#if journey.arrival}}
+    <div class="journey-section journey-arrival">
+      <div class="journey-section-title">{{localize "WFRP4EPARTY.JourneyArrival"}}</div>
+      <p>{{localize "WFRP4EPARTY.JourneyArrivalComplete"}}</p>
+      {{#if journey.eisActive}}
+        {{#each journey.arrival.penalties as |p|}}
+          <div class="journey-arrival-penalty">{{localize "WFRP4EPARTY.JourneyArrivalFatiguedPenalty" name=p.name tier=p.tier penalty=p.penalty}}</div>
+        {{/each}}
+        <div class="journey-arrival-note">{{localize "WFRP4EPARTY.JourneyArrivalDiseaseReminder"}}</div>
+        <a class="group-roll" data-action="rollArrivalLore">{{localize "WFRP4EPARTY.JourneyArrivalLoreButton"}}</a>
+        <a class="group-roll" data-action="rollArrivalGossip">{{localize "WFRP4EPARTY.JourneyArrivalGossipButton"}}</a>
+      {{/if}}
+    </div>
+    {{/if}}
+    {{/if}}
+
+    <details class="journey-section journey-log" open>
+      <summary>{{localize "WFRP4EPARTY.JourneyLog"}}</summary>
+      {{#if journey.log.length}}
+        {{#each journey.log as |entry|}}
+          <div class="journey-log-entry"><strong>{{localize "WFRP4EPARTY.JourneyLogStageLabel" stage=entry.stage}}:</strong> {{entry.text}}</div>
+        {{/each}}
+        {{#if journey.isGM}}
+          <div class="journey-log-buttons">
+            <label class="journey-log-public-only"><input type="checkbox" name="publicOnly"/> {{localize "WFRP4EPARTY.PostLogSummaryPublicOnly"}}</label>
+            <a class="group-roll" data-action="postLogSummary">{{localize "WFRP4EPARTY.JourneyPostLogSummaryButton"}}</a>
+            <a class="group-roll journey-log-reset" data-action="resetLogSummary" data-tooltip="{{localize 'WFRP4EPARTY.ResetLogTooltip'}}">{{localize "WFRP4EPARTY.ResetLogButton"}}</a>
+          </div>
+        {{/if}}
+      {{else}}
+        <div class="journey-log-empty">{{localize "WFRP4EPARTY.JourneyLogEmpty"}}</div>
+      {{/if}}
+    </details>
+
+    {{#if journey.isGM}}
+    <details class="journey-section journey-custom-tables">
+      <summary>{{localize "WFRP4EPARTY.JourneyCustomTables"}}</summary>
+      <p class="journey-hint">{{localize "WFRP4EPARTY.JourneyCustomTablesHint"}}</p>
+      <div class="form-group"><label>{{localize "WFRP4EPARTY.JourneyCustomTablePositive"}}</label>
+        <input type="text" name="system.journey.config.customTables.positive" value="{{journey.config.customTables.positive}}"/></div>
+      <div class="form-group"><label>{{localize "WFRP4EPARTY.JourneyCustomTableCoincidental"}}</label>
+        <input type="text" name="system.journey.config.customTables.coincidental" value="{{journey.config.customTables.coincidental}}"/></div>
+      <div class="form-group"><label>{{localize "WFRP4EPARTY.JourneyCustomTableHarmful"}}</label>
+        <input type="text" name="system.journey.config.customTables.harmful" value="{{journey.config.customTables.harmful}}"/></div>
+    </details>
+    {{/if}}
+  </div>
+  {{/if}}
+</section>
