@@ -1,8 +1,8 @@
 import { registerMutationHandler, requestMutation } from "./mutation-queue.js";
+import * as currency from "./currency.js";
 
 const MODULE_ID = "wfrp4e-party-sheet";
 const PARTY_ACTOR_TYPE = "wfrp4e-party-sheet.party";
-const COIN_VALUES = { gc: 240, ss: 12, bp: 1 };
 
 function capacityCheckedOptions() {
   return { [MODULE_ID]: { capacityChecked: true } };
@@ -82,7 +82,18 @@ function canonicalize(value, { unordered = false } = {}) {
 
 function stackIdentity(item) {
   const data = item.toObject ? item.toObject() : foundry.utils.deepClone(item);
-  if (data.type === "money") return JSON.stringify({ type: data.type, coinValue: data.system?.coinValue?.value });
+  if (data.type === "money") {
+    const coinValue = data.system?.coinValue?.value ?? 0;
+    // Phase 9 — secondary currencies (Design Decisions row 3: no exchange rate) commonly all
+    // carry coinValue 0/undefined, so coinValue alone can no longer distinguish them once more
+    // than one exists (it always could for primaries, which are >0 and unique per denomination).
+    // Fold in the module's own secondaryId flag for the coinValue<=0 case only — primary coin
+    // identity (coinValue > 0) is unchanged, matching Design Decisions row 3's "merge by value,
+    // never by name" for primaries exactly as before.
+    return coinValue > 0
+      ? JSON.stringify({ type: data.type, coinValue })
+      : JSON.stringify({ type: data.type, coinValue, secondaryId: data.flags?.[MODULE_ID]?.secondaryId ?? data.name });
+  }
 
   const system = foundry.utils.deepClone(data.system ?? {});
   delete system.quantity;
@@ -261,10 +272,18 @@ async function performMoveItem({ fromActor, toActor, itemId, amount, requester, 
   return { ok: true, createdId, finalSourceQty: isFullMove ? 0 : fullQty - amount };
 }
 
+// Phase 9 (Item Piles currencies) — sums only coins whose coinValue matches a CONFIGURED
+// primary denomination. A leftover coin from a previous currency config (no longer in the
+// list) is deliberately excluded here — see decomposeToDenominations and the Consolidate fix
+// below, where the same exclusion prevents double-counting a coin that Consolidate cannot
+// legally redistribute into (task 2.3).
 function sumCoinBrass(actor) {
+  const configured = new Set(currency.getDenominations().map(d => d.coinValue));
   return actor.items.reduce((sum, i) => {
     if (i.type !== "money") return sum;
-    return sum + (i.system.coinValue?.value ?? 0) * (i.system.quantity?.value ?? 0);
+    const coinValue = i.system.coinValue?.value ?? 0;
+    if (!configured.has(coinValue)) return sum;
+    return sum + coinValue * (i.system.quantity?.value ?? 0);
   }, 0);
 }
 
@@ -272,12 +291,18 @@ function findCoinStack(actor, coinValue) {
   return actor.items.find(i => i.type === "money" && i.system.coinValue?.value === coinValue) ?? null;
 }
 
+function findSecondaryStack(actor, secondaryId) {
+  return actor.items.find(i => i.type === "money" && i.getFlag(MODULE_ID, "secondaryId") === secondaryId) ?? null;
+}
+
 // Mirrors MarketWFRP4e.consolidateMoney's greedy Math.trunc/% redistribution (wfrp4e.js:688-689),
-// guarding the coinValue<=0 divide-by-zero trap (wfrp4e.js:686-687) by skipping non-positive denominations.
+// guarding the coinValue<=0 divide-by-zero trap (wfrp4e.js:686-687) by skipping non-positive
+// denominations. The denomination list is the live Item Piles config (or the core three when
+// absent/inactive — currency.js is fail-open).
 function decomposeToDenominations(totalBrass) {
   const denoms = {};
   let remaining = totalBrass;
-  for (const coinValue of [COIN_VALUES.gc, COIN_VALUES.ss, COIN_VALUES.bp]) {
+  for (const coinValue of currency.getDenominations().map(d => d.coinValue)) {
     if (coinValue <= 0) continue;
     denoms[coinValue] = Math.trunc(remaining / coinValue);
     remaining = remaining % coinValue;
@@ -309,7 +334,7 @@ function addDenominations(before, counts) {
 // (callers still check total brass up front; this is the belt-and-braces path).
 function subtractDenominations(before, counts) {
   const after = { ...before };
-  const ascending = [COIN_VALUES.bp, COIN_VALUES.ss, COIN_VALUES.gc].filter(v => v > 0).sort((a, b) => a - b);
+  const ascending = currency.getDenominations().map(d => d.coinValue).filter(v => v > 0).sort((a, b) => a - b);
 
   let owedBrass = 0;
   for (const [coinValue, count] of Object.entries(counts)) {
@@ -337,9 +362,18 @@ function subtractDenominations(before, counts) {
 
 function snapshotDenoms(actor) {
   const snap = {};
-  for (const coinValue of [COIN_VALUES.gc, COIN_VALUES.ss, COIN_VALUES.bp]) {
+  for (const coinValue of currency.getDenominations().map(d => d.coinValue)) {
     const item = findCoinStack(actor, coinValue);
     snap[coinValue] = item ? item.system.quantity.value : 0;
+  }
+  return snap;
+}
+
+function snapshotSecondaries(actor) {
+  const snap = {};
+  for (const sec of currency.getSecondaryDenominations()) {
+    const item = findSecondaryStack(actor, sec.id);
+    snap[sec.id] = item ? item.system.quantity.value : 0;
   }
   return snap;
 }
@@ -354,11 +388,14 @@ function resolveCoinTemplate(coinValue, ...actors) {
 
 // Phase 7 capacity gate needs a per-coin Enc value BEFORE any coin item necessarily exists on
 // either actor (a brand-new party pool has zero money items pre-seed-backfill) — resolve from
-// whichever actor has a live template, falling back to the canonical 0.005/coin rate (memo
-// §Coin canon, live-verified) rather than throwing.
+// whichever actor has a live template, then the currently configured denomination's own
+// encumbrance, falling back to the canonical 0.005/coin rate (memo §Coin canon, live-verified)
+// rather than throwing.
 function coinEncumbranceValue(coinValue, ...actors) {
   const template = resolveCoinTemplate(coinValue, ...actors);
-  return Number(template?.system?.encumbrance?.value ?? 0.005);
+  if (template) return Number(template.system?.encumbrance?.value ?? 0.005);
+  const configured = currency.getDenominations().find(d => d.coinValue === coinValue);
+  return Number(configured?.encumbrance ?? 0.005);
 }
 
 // Reshapes `actor`'s money items to exactly match `denomsAfter` (find-or-create-or-update by
@@ -366,7 +403,7 @@ function coinEncumbranceValue(coinValue, ...actors) {
 async function applyDenominations(actor, denomsAfter, transferId, templateActor) {
   const changes = [];
   try {
-    for (const coinValue of [COIN_VALUES.gc, COIN_VALUES.ss, COIN_VALUES.bp]) {
+    for (const coinValue of currency.getDenominations().map(d => d.coinValue)) {
       const targetCount = denomsAfter[coinValue] ?? 0;
       const existing = findCoinStack(actor, coinValue);
       if (existing) {
@@ -406,7 +443,7 @@ async function revertDenominations(actor, denomsBefore, changes) {
       }
     }
     const verified = await settlePoll(() => {
-      for (const coinValue of [COIN_VALUES.gc, COIN_VALUES.ss, COIN_VALUES.bp]) {
+      for (const coinValue of currency.getDenominations().map(d => d.coinValue)) {
         const item = findCoinStack(actor, coinValue);
         const qty = item ? item.system.quantity.value : 0;
         if (qty !== (denomsBefore[coinValue] ?? 0)) return false;
@@ -421,14 +458,121 @@ async function revertDenominations(actor, denomsBefore, changes) {
   }
 }
 
+// Secondary currencies have no exchange rate (Design Decisions row 3) and so never go through
+// decompose/subtract change-making — they move as whole units, find-or-create-or-update by the
+// module's own `secondaryId` flag (never by name — a GM may rename a currency in Item Piles'
+// config without this module losing track of the materialized stack... though a rename DOES
+// change `sec.id` upstream since the id is derived from the configured label; a stack created
+// under the old label simply becomes untracked, same graceful-orphan behavior as a primary coin
+// dropped from the config, see sumCoinBrass/decomposeToDenominations above).
+async function applySecondaries(actor, secondsAfter, transferId, templateActor) {
+  const changes = [];
+  try {
+    for (const sec of currency.getSecondaryDenominations()) {
+      const targetCount = secondsAfter[sec.id] ?? 0;
+      const existing = findSecondaryStack(actor, sec.id);
+      if (existing) {
+        const prevQty = existing.system.quantity.value;
+        if (prevQty === targetCount) continue;
+        await _internals.updateDenomination(actor, existing.id, targetCount);
+        changes.push({ id: sec.id, docId: existing.id, prevQty, created: false });
+      } else if (targetCount > 0) {
+        const itemData = {
+          name: sec.label,
+          type: "money",
+          img: sec.img || "icons/svg/coins.svg",
+          system: {
+            quantity: { value: targetCount },
+            encumbrance: { value: sec.encumbrance },
+            coinValue: { value: 0 },
+          },
+        };
+        foundry.utils.setProperty(itemData, `flags.${MODULE_ID}.transferId`, transferId);
+        foundry.utils.setProperty(itemData, `flags.${MODULE_ID}.secondaryId`, sec.id);
+        const created = await _internals.createDenomination(actor, itemData);
+        const stamped = actor.items.find(i => i.getFlag(MODULE_ID, "transferId") === transferId && i.getFlag(MODULE_ID, "secondaryId") === sec.id);
+        const createdId = stamped?.id ?? created?.[0]?.id;
+        if (!createdId) throw new Error(`secondary-create-empty-${sec.id}`);
+        changes.push({ id: sec.id, docId: createdId, prevQty: 0, created: true });
+      }
+    }
+  } catch (err) {
+    const failure = err instanceof Error ? err : new Error(String(err));
+    failure.partialChanges = changes;
+    throw failure;
+  }
+  return changes;
+}
+
+async function revertSecondaries(actor, secondsBefore, changes) {
+  try {
+    for (const change of [...changes].reverse()) {
+      if (change.created) {
+        await actor.deleteEmbeddedDocuments("Item", [change.docId]);
+      } else {
+        await actor.updateEmbeddedDocuments("Item", [{ _id: change.docId, "system.quantity.value": change.prevQty }], capacityCheckedOptions());
+      }
+    }
+    const verified = await settlePoll(() => {
+      for (const sec of currency.getSecondaryDenominations()) {
+        const item = findSecondaryStack(actor, sec.id);
+        const qty = item ? item.system.quantity.value : 0;
+        if (qty !== (secondsBefore[sec.id] ?? 0)) return false;
+      }
+      return true;
+    });
+    if (!verified) throw new Error("rollback-verify-failed");
+    return true;
+  } catch (err) {
+    ui.notifications.error(game.i18n.format("WFRP4EPARTY.TransferRollbackFailed", { actor: actor.name, item: "secondary coins" }));
+    return false;
+  }
+}
+
+function addSecondaries(before, counts) {
+  const after = { ...before };
+  for (const [id, count] of Object.entries(counts)) {
+    if (!count) continue;
+    after[id] = (after[id] ?? 0) + count;
+  }
+  return after;
+}
+
+// No change-making for secondaries — "cannot be split" (Design Decisions row 3). Returns null
+// if any requested secondary exceeds what the purse holds.
+function subtractSecondaries(before, counts) {
+  const after = { ...before };
+  for (const [id, count] of Object.entries(counts)) {
+    if (!count) continue;
+    const available = after[id] ?? 0;
+    if (available < count) return null;
+    after[id] = available - count;
+  }
+  return after;
+}
+
 /**
- * Transactional coin move, matched by system.coinValue.value only (the system's name-keyed coin
- * helpers throw/no-op on renamed or missing coin items). Reshapes both actors' money stacks to
- * canonical gc/ss/bp denominations (mirrors consolidateMoney), verify+rollback per side.
+ * Transactional coin move, matched by system.coinValue.value / secondaryId flag only (the
+ * system's name-keyed coin helpers throw/no-op on renamed or missing coin items). Reshapes both
+ * actors' primary money stacks to the configured canonical denominations (mirrors
+ * consolidateMoney), verify+rollback per side. `coins` is coinValue-keyed
+ * ({ [coinValue]: count }); `secondaryCoins` is id-keyed ({ [secondaryId]: count }) and never
+ * contributes to brass totals or change-making (Design Decisions row 3).
  */
-async function performMoveCoins({ fromActor, toActor, coins, transferId = foundry.utils.randomID() }) {
-  const totalBrass = (coins.gc ?? 0) * COIN_VALUES.gc + (coins.ss ?? 0) * COIN_VALUES.ss + (coins.bp ?? 0) * COIN_VALUES.bp;
-  if (!(totalBrass > 0)) {
+async function performMoveCoins({ fromActor, toActor, coins = {}, secondaryCoins = {}, transferId = foundry.utils.randomID() }) {
+  const primaryValues = currency.getDenominations().map(d => d.coinValue);
+  const secondaryList = currency.getSecondaryDenominations();
+
+  // The coins the user actually named — NOT decomposeToDenominations(totalBrass), which would
+  // canonicalise "20 SS" into "1 GC" before it ever reached the pool (Phase 8 001).
+  const incomingCounts = {};
+  for (const coinValue of primaryValues) incomingCounts[coinValue] = Number(coins[coinValue]) || 0;
+  const incomingSecondary = {};
+  for (const sec of secondaryList) incomingSecondary[sec.id] = Number(secondaryCoins[sec.id]) || 0;
+
+  const totalBrass = primaryValues.reduce((sum, v) => sum + incomingCounts[v] * v, 0);
+  const secondaryTotal = Object.values(incomingSecondary).reduce((sum, n) => sum + n, 0);
+  if (!(totalBrass > 0) && !(secondaryTotal > 0)) {
     ui.notifications.error(game.i18n.localize("WFRP4EPARTY.TransferBadAmount"));
     return { ok: false, reason: "bad-amount" };
   }
@@ -438,16 +582,17 @@ async function performMoveCoins({ fromActor, toActor, coins, transferId = foundr
     ui.notifications.error(game.i18n.localize("WFRP4EPARTY.TransferInsufficientFunds"));
     return { ok: false, reason: "insufficient-funds" };
   }
+  const sourceSecondariesBefore = snapshotSecondaries(fromActor);
+  for (const [id, count] of Object.entries(incomingSecondary)) {
+    if (count > (sourceSecondariesBefore[id] ?? 0)) {
+      ui.notifications.error(game.i18n.localize("WFRP4EPARTY.TransferInsufficientFunds"));
+      return { ok: false, reason: "insufficient-funds" };
+    }
+  }
 
-  // The coins the user actually named — NOT decomposeToDenominations(totalBrass), which would
-  // canonicalise "20 SS" into "1 GC" before it ever reached the pool (Phase 8 001).
-  const incomingCounts = {
-    [COIN_VALUES.gc]: coins.gc ?? 0,
-    [COIN_VALUES.ss]: coins.ss ?? 0,
-    [COIN_VALUES.bp]: coins.bp ?? 0
-  };
   const incomingEnc = Object.entries(incomingCounts)
-    .reduce((sum, [coinValue, count]) => sum + coinEncumbranceValue(Number(coinValue), toActor, fromActor) * count, 0);
+    .reduce((sum, [coinValue, count]) => sum + coinEncumbranceValue(Number(coinValue), toActor, fromActor) * count, 0)
+    + secondaryList.reduce((sum, sec) => sum + sec.encumbrance * (incomingSecondary[sec.id] ?? 0), 0);
   const overCap = checkCapacity(toActor, incomingEnc);
   if (overCap) {
     ui.notifications.error(game.i18n.format("WFRP4EPARTY.TransferCapacityExceeded", { shortfall: overCap.shortfall }));
@@ -456,10 +601,16 @@ async function performMoveCoins({ fromActor, toActor, coins, transferId = foundr
 
   const targetBrassBefore = sumCoinBrass(toActor);
   const targetDenomsBefore = snapshotDenoms(toActor);
+  const targetSecondariesBefore = snapshotSecondaries(toActor);
   // Add the coins as handed over; do not reshape what the receiver already holds.
   const targetDenomsAfter = addDenominations(targetDenomsBefore, incomingCounts);
+  const targetSecondariesAfter = addSecondaries(targetSecondariesBefore, incomingSecondary);
 
-  let targetChanges;
+  let targetChanges = [];
+  let targetSecondaryChanges = [];
+  // Each apply phase stamps its own `partialChanges`, so the two cannot share a catch: a
+  // secondary failure would hand the secondary change list to revertDenominations and leave the
+  // already-committed primary coins on the receiver. Separate scopes, each reverted with its own list.
   try {
     targetChanges = await applyDenominations(toActor, targetDenomsAfter, transferId, fromActor);
   } catch (err) {
@@ -467,50 +618,85 @@ async function performMoveCoins({ fromActor, toActor, coins, transferId = foundr
     ui.notifications.error(game.i18n.localize("WFRP4EPARTY.TransferCreateFailed"));
     return { ok: false, reason: "create-failed", rolledBack };
   }
+  try {
+    targetSecondaryChanges = await applySecondaries(toActor, targetSecondariesAfter, transferId, fromActor);
+  } catch (err) {
+    const rolledBackSecondary = await revertSecondaries(toActor, targetSecondariesBefore, err.partialChanges ?? []);
+    const rolledBackPrimary = await revertDenominations(toActor, targetDenomsBefore, targetChanges);
+    ui.notifications.error(game.i18n.localize("WFRP4EPARTY.TransferCreateFailed"));
+    return { ok: false, reason: "create-failed", rolledBack: rolledBackPrimary && rolledBackSecondary };
+  }
 
   const targetVerified = await settlePoll(() => sumCoinBrass(toActor) === targetBrassBefore + totalBrass);
   if (!targetVerified) {
-    const rolledBack = await revertDenominations(toActor, targetDenomsBefore, targetChanges);
+    await revertDenominations(toActor, targetDenomsBefore, targetChanges);
+    const rolledBack = await revertSecondaries(toActor, targetSecondariesBefore, targetSecondaryChanges);
     ui.notifications.error(game.i18n.localize("WFRP4EPARTY.TransferVerifyFailed"));
     return { ok: false, reason: "target-verify-failed", rolledBack };
   }
 
   const sourceDenomsBefore = snapshotDenoms(fromActor);
+  const sourceSecondaryBefore = snapshotSecondaries(fromActor);
   // Spend the named coins where the payer has them; break a larger coin only for the shortfall.
   const sourceDenomsAfter = subtractDenominations(sourceDenomsBefore, incomingCounts);
-  if (!sourceDenomsAfter) {
-    const rolledBack = await revertDenominations(toActor, targetDenomsBefore, targetChanges);
+  const sourceSecondaryAfter = subtractSecondaries(sourceSecondaryBefore, incomingSecondary);
+  if (!sourceDenomsAfter || !sourceSecondaryAfter) {
+    await revertDenominations(toActor, targetDenomsBefore, targetChanges);
+    const rolledBack = await revertSecondaries(toActor, targetSecondariesBefore, targetSecondaryChanges);
     ui.notifications.error(game.i18n.localize("WFRP4EPARTY.TransferInsufficientFunds"));
     return { ok: false, reason: "insufficient-funds", rolledBack };
   }
 
-  let sourceChanges;
+  let sourceChanges = [];
+  let sourceSecondaryChanges = [];
+  // Same split as the target side above — a secondary failure must not swallow the primary
+  // change list that revertDenominations needs to undo the source write.
   try {
     sourceChanges = await applyDenominations(fromActor, sourceDenomsAfter, transferId, toActor);
   } catch (err) {
     const rolledBackSource = await revertDenominations(fromActor, sourceDenomsBefore, err.partialChanges ?? []);
     const rolledBackTarget = await revertDenominations(toActor, targetDenomsBefore, targetChanges);
+    const rolledBackTargetSecondary = await revertSecondaries(toActor, targetSecondariesBefore, targetSecondaryChanges);
     ui.notifications.error(game.i18n.localize("WFRP4EPARTY.TransferSourceFailed"));
-    return { ok: false, reason: "source-write-failed", rolledBack: rolledBackSource && rolledBackTarget };
+    return { ok: false, reason: "source-write-failed", rolledBack: rolledBackSource && rolledBackTarget && rolledBackTargetSecondary };
+  }
+  try {
+    sourceSecondaryChanges = await applySecondaries(fromActor, sourceSecondaryAfter, transferId, toActor);
+  } catch (err) {
+    const rolledBackSourceSecondary = await revertSecondaries(fromActor, sourceSecondaryBefore, err.partialChanges ?? []);
+    const rolledBackSource = await revertDenominations(fromActor, sourceDenomsBefore, sourceChanges);
+    const rolledBackTarget = await revertDenominations(toActor, targetDenomsBefore, targetChanges);
+    const rolledBackTargetSecondary = await revertSecondaries(toActor, targetSecondariesBefore, targetSecondaryChanges);
+    ui.notifications.error(game.i18n.localize("WFRP4EPARTY.TransferSourceFailed"));
+    return { ok: false, reason: "source-write-failed", rolledBack: rolledBackSource && rolledBackSourceSecondary && rolledBackTarget && rolledBackTargetSecondary };
   }
 
   const sourceVerified = await settlePoll(() => sumCoinBrass(fromActor) === sourceBrassBefore - totalBrass);
   if (!sourceVerified) {
     const rolledBackSource = await revertDenominations(fromActor, sourceDenomsBefore, sourceChanges);
+    const rolledBackSourceSecondary = await revertSecondaries(fromActor, sourceSecondaryBefore, sourceSecondaryChanges);
     const rolledBackTarget = await revertDenominations(toActor, targetDenomsBefore, targetChanges);
+    const rolledBackTargetSecondary = await revertSecondaries(toActor, targetSecondariesBefore, targetSecondaryChanges);
     ui.notifications.error(game.i18n.localize("WFRP4EPARTY.TransferVerifyFailed"));
-    return { ok: false, reason: "source-verify-failed", rolledBack: rolledBackSource && rolledBackTarget };
+    return { ok: false, reason: "source-verify-failed", rolledBack: rolledBackSource && rolledBackSourceSecondary && rolledBackTarget && rolledBackTargetSecondary };
   }
 
-  await postTransferChatLine(fromActor, toActor, coins, null);
+  await postTransferChatLine(fromActor, toActor, { coins: incomingCounts, secondaryCoins: incomingSecondary }, null);
   return { ok: true };
 }
 
-function formatCoinString(coins) {
+function formatCoinString(coinsPayload) {
+  const coins = coinsPayload?.coins ?? {};
+  const secondaryCoins = coinsPayload?.secondaryCoins ?? {};
   const parts = [];
-  if (coins.gc) parts.push(`${coins.gc}${game.i18n.localize("MARKET.Abbrev.GC")}`);
-  if (coins.ss) parts.push(`${coins.ss}${game.i18n.localize("MARKET.Abbrev.SS")}`);
-  if (coins.bp) parts.push(`${coins.bp}${game.i18n.localize("MARKET.Abbrev.BP")}`);
+  for (const denom of currency.getDenominations()) {
+    const count = coins[denom.coinValue];
+    if (count) parts.push(`${count}${denom.abbrev}`);
+  }
+  for (const sec of currency.getSecondaryDenominations()) {
+    const count = secondaryCoins[sec.id];
+    if (count) parts.push(`${count} ${sec.label}`);
+  }
   return parts.join(" ");
 }
 
@@ -547,18 +733,18 @@ export async function withdraw(partyActor, targetMemberActor, itemId, amount) {
   return moveItem({ fromActor: partyActor, toActor: targetMemberActor, itemId, amount });
 }
 
-export async function depositCoins(sourceActor, targetPartyActor, coins) {
+export async function depositCoins(sourceActor, targetPartyActor, coins, secondaryCoins = {}) {
   if (!game.user.isGM && !sourceActor.isOwner) return { ok: false, reason: "not-owner" };
-  return moveCoins({ fromActor: sourceActor, toActor: targetPartyActor, coins });
+  return moveCoins({ fromActor: sourceActor, toActor: targetPartyActor, coins, secondaryCoins });
 }
 
-export async function withdrawCoins(partyActor, targetMemberActor, coins) {
+export async function withdrawCoins(partyActor, targetMemberActor, coins, secondaryCoins = {}) {
   if (!game.user.isGM && !targetMemberActor.isOwner) return { ok: false, reason: "not-owner" };
   if (!game.actors.get(targetMemberActor.id)) {
     ui.notifications.error(game.i18n.localize("WFRP4EPARTY.TransferMemberGone"));
     return { ok: false, reason: "member-gone" };
   }
-  return moveCoins({ fromActor: partyActor, toActor: targetMemberActor, coins });
+  return moveCoins({ fromActor: partyActor, toActor: targetMemberActor, coins, secondaryCoins });
 }
 
 export async function moveItem({ fromActor, toActor, itemId, amount }) {
@@ -570,11 +756,12 @@ export async function moveItem({ fromActor, toActor, itemId, amount }) {
   });
 }
 
-export async function moveCoins({ fromActor, toActor, coins }) {
+export async function moveCoins({ fromActor, toActor, coins, secondaryCoins = {} }) {
   return requestMutation("move-coins", {
     fromActorId: fromActor.id,
     toActorId: toActor.id,
     coins,
+    secondaryCoins,
   });
 }
 
@@ -646,10 +833,20 @@ async function performAddItem(partyActor, itemData) {
 }
 
 // Phase 7 (R7.8) — Consolidate: reshapes `actor`'s canonical coin stacks (matched by
-// system.coinValue.value, NEVER by name) into the fewest possible gc/ss/bp items, conserving
-// total pence. Strictly reduces coin count so it is never capacity-gated (R7.8 explicit).
-// Non-canonical homebrew coins (Phase 4 F02) are left untouched.
+// system.coinValue.value, NEVER by name) into the fewest possible configured-denomination items,
+// conserving total pence. Strictly reduces coin count so it is never capacity-gated (R7.8
+// explicit). Non-canonical homebrew coins (Phase 4 F02) — including any coin whose coinValue is
+// no longer in the currency config (task 2.3) — are excluded from both the brass sum and the
+// redistribution, and left untouched as their own stacks; sumCoinBrass already enforces this.
+//
+// Task 2.3 — greedy decomposition is only provably correct over a clean divisibility chain
+// (plan Design Decisions row 1). When the configured denominations don't form one,
+// isChainValid() has already warned once and Consolidate refuses to run rather than risk a
+// silently non-minimal or wrong redistribution.
 async function performConsolidateCoins(actor) {
+  if (!currency.isChainValid()) {
+    return { ok: false, reason: "invalid-denomination-chain" };
+  }
   const beforeBrass = sumCoinBrass(actor);
   const denomsBefore = snapshotDenoms(actor);
   const denomsAfter = decomposeToDenominations(beforeBrass);
@@ -738,10 +935,20 @@ registerMutationHandler("move-coins", async (payload, { requester }) => {
   const denied = authorizeTransfer(requester, fromActor, toActor);
   if (denied) return { ok: false, reason: denied };
   const coins = payload.coins ?? {};
-  if (!["gc", "ss", "bp"].every(key => Number.isInteger(coins[key] ?? 0) && (coins[key] ?? 0) >= 0)) {
+  const secondaryCoins = payload.secondaryCoins ?? {};
+  const validCounts = obj => Object.values(obj).every(v => Number.isInteger(v ?? 0) && (v ?? 0) >= 0);
+  // Keys are validated against the LIVE configured denomination set, not a fixed gc/ss/bp
+  // literal — this handler runs on the active-GM client via the mutation queue's socket relay
+  // (mutation-queue.js:45-51), so `currency.getDenominations()` here reads that GM client's own
+  // config, same as every other coin-engine call in this file.
+  const validPrimaryKeys = new Set(currency.getDenominations().map(d => String(d.coinValue)));
+  const validSecondaryKeys = new Set(currency.getSecondaryDenominations().map(d => d.id));
+  if (!validCounts(coins) || !validCounts(secondaryCoins)
+    || !Object.keys(coins).every(k => validPrimaryKeys.has(k))
+    || !Object.keys(secondaryCoins).every(k => validSecondaryKeys.has(k))) {
     return { ok: false, reason: "bad-amount" };
   }
-  return performMoveCoins({ fromActor, toActor, coins });
+  return performMoveCoins({ fromActor, toActor, coins, secondaryCoins });
 });
 
 registerMutationHandler("add-item", async (payload, { requester }) => {

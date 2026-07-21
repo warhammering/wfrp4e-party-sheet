@@ -37,39 +37,69 @@
             <span class="label member-name">{{card.name}}</span>
           </div>
         </div>
+      {{else if card.collapsed}}
+        {{! v0.4.0 — personal collapsed view: portrait + name only, so a large party stays
+            scannable. Distinct from .npc-redacted above (that one is a GM-controlled redaction
+            and never carries the stat fields at all — this one is a per-viewer preference over
+            a card the viewer is entitled to see). The remove-X stays reachable while collapsed. }}
+        <div class="member-card collapsed" data-id="{{card.id}}">
+          <img class="member-portrait" src="{{card.img}}" data-action="openMemberSheet" data-tooltip="{{localize 'WFRP4EPARTY.OpenSheet'}}">
+          <span class="label member-name">{{card.name}}</span>
+          <a class="member-collapse-toggle" data-action="toggleMemberCollapse" data-tooltip="{{localize 'WFRP4EPARTY.ExpandMemberTooltip'}}"><i class="fas fa-chevron-down"></i></a>
+          {{#if @root.isGM}}
+            <a class="list-control" data-action="removeMember" title="{{localize 'WFRP4EPARTY.RemoveMemberTitle'}}"><i class="fas fa-xmark"></i></a>
+          {{/if}}
+        </div>
       {{else}}
         <div class="member-card" data-id="{{card.id}}">
+          {{! v0.4.0 — the remove-X owns the card's top-right corner; the collapse chevron sits in
+              the portrait column beside the category select (they swapped places at user request). }}
           {{#if @root.isGM}}
-            {{! Phase 8 (005) — GM control over whether players see this member's stats. Absolutely
-                positioned into the empty space above the portrait so it disturbs no existing layout. }}
-            <label class="party-reveal-stats" data-tooltip="{{localize 'WFRP4EPARTY.RevealStatsTooltip'}}">
-              <input type="checkbox" data-action="toggleRevealStats" {{#if card.revealStats}}checked{{/if}}/>
-              <span>{{localize "WFRP4EPARTY.RevealStatsLabel"}}</span>
-            </label>
+            <a class="list-control member-card-remove" data-action="removeMember" title="{{localize 'WFRP4EPARTY.RemoveMemberTitle'}}"><i class="fas fa-xmark"></i></a>
           {{/if}}
-          <img class="member-portrait" src="{{card.img}}" data-action="openMemberSheet" data-tooltip="{{localize 'WFRP4EPARTY.OpenSheet'}}">
+          {{! v0.3.0 — the GM column: reveal toggle, portrait, then the tag/collapse controls. The
+              toggle was absolutely positioned (Phase 8/005) and overlapped the card's top border
+              once the column grew; it is in normal flow now so it reserves its own height. }}
+          <div class="member-portrait-col">
+            {{#if @root.isGM}}
+              <label class="party-reveal-stats" data-tooltip="{{localize 'WFRP4EPARTY.RevealStatsTooltip'}}">
+                <input type="checkbox" data-action="toggleRevealStats" {{#if card.revealStats}}checked{{/if}}/>
+                <span>{{localize "WFRP4EPARTY.RevealStatsLabel"}}</span>
+              </label>
+            {{/if}}
+            <img class="member-portrait" src="{{card.img}}" data-action="openMemberSheet" data-tooltip="{{localize 'WFRP4EPARTY.OpenSheet'}}">
+            {{! v0.4.0 — the row itself is no longer GM-gated: the collapse chevron in it is available
+                to every viewer, so only the category select keeps the isGM guard. }}
+            <div class="member-portrait-controls">
+              {{#if @root.isGM}}
+              <select class="party-member-category" data-action="setMemberCategory" data-tooltip="{{localize 'WFRP4EPARTY.MemberCategoryTooltip'}}">
+                {{#each @root.memberCategoryOptions as |opt|}}
+                  <option value="{{opt.key}}" {{#if (eq opt.key card.category)}}selected{{/if}}>{{opt.label}}</option>
+                {{/each}}
+              </select>
+              {{/if}}
+              <a class="member-collapse-toggle" data-action="toggleMemberCollapse" data-tooltip="{{localize 'WFRP4EPARTY.CollapseMemberTooltip'}}"><i class="fas fa-chevron-up"></i></a>
+            </div>
+          </div>
           <div class="member-body">
             <div class="member-row">
               <div class="member-main">
                 <div class="member-topline">
                   <span class="label member-name">{{card.name}}</span>
-                  {{#if @root.isGM}}
-                  <select class="party-member-category" data-action="setMemberCategory" data-tooltip="{{localize 'WFRP4EPARTY.MemberCategoryTooltip'}}">
-                    {{#each @root.memberCategoryOptions as |opt|}}
-                      <option value="{{opt.key}}" {{#if (eq opt.key card.category)}}selected{{/if}}>{{opt.label}}</option>
-                    {{/each}}
-                  </select>
-                  <a class="list-control" data-action="removeMember" title="{{localize 'WFRP4EPARTY.RemoveMemberTitle'}}"><i class="fas fa-xmark"></i></a>
-                  {{/if}}
+                  {{! Absent entirely when the actor has no current-tagged career AND no status —
+                      the joined string is "" in that case, so no separator is ever orphaned. }}
+                  {{#if card.careerStatus}}<span class="member-careerstatus">{{card.careerStatus}}</span>{{/if}}
                 </div>
                 <div class="wounds-bar">
                   <div class="wounds-bar-fill" style="width:{{pct card.wounds.value card.wounds.max true}}%"></div>
                   <div class="wounds-bar-text">{{card.wounds.value}} / {{card.wounds.max}}</div>
                 </div>
+                {{! v0.3.0 — each label+value is one .member-pool unit so that when the row wraps
+                    on a narrow sheet, a number never separates from its own label. }}
                 <div class="member-pools">
-                  <span class="label">{{localize "WFRP4EPARTY.Fortune"}}</span> <span class="value">{{card.fortune}}</span>
-                  <span class="label">{{localize "WFRP4EPARTY.Resolve"}}</span> <span class="value">{{card.resolve}}</span>
-                  <span class="label">{{localize "WFRP4EPARTY.Movement"}}</span> <span class="value">{{card.move}}</span>
+                  <span class="member-pool"><span class="label">{{localize "WFRP4EPARTY.Fortune"}}</span> <span class="value">{{card.fortune}}</span></span>
+                  <span class="member-pool"><span class="label">{{localize "WFRP4EPARTY.Resolve"}}</span> <span class="value">{{card.resolve}}</span></span>
+                  <span class="member-pool"><span class="label">{{localize "WFRP4EPARTY.Movement"}}</span> <span class="value">{{card.move}}</span></span>
                 </div>
                 {{#if card.zeroWounds}}
                   <div class="label warning">{{localize "WFRP4EPARTY.ZeroWounds"}}</div>
@@ -153,39 +183,58 @@
               <span class="label member-name">{{card.name}}</span>
             </div>
           </div>
+        {{else if card.collapsed}}
+          {{! v0.4.0 — see the memberCards branch above: personal collapsed view, portrait + name. }}
+          <div class="member-card collapsed" data-id="{{card.id}}">
+            <img class="member-portrait" src="{{card.img}}" data-action="openMemberSheet" data-tooltip="{{localize 'WFRP4EPARTY.OpenSheet'}}">
+            <span class="label member-name">{{card.name}}</span>
+            <a class="member-collapse-toggle" data-action="toggleMemberCollapse" data-tooltip="{{localize 'WFRP4EPARTY.ExpandMemberTooltip'}}"><i class="fas fa-chevron-down"></i></a>
+            {{#if @root.isGM}}
+              <a class="list-control" data-action="removeMember" title="{{localize 'WFRP4EPARTY.RemoveMemberTitle'}}"><i class="fas fa-xmark"></i></a>
+            {{/if}}
+          </div>
         {{else}}
           <div class="member-card" data-id="{{card.id}}">
+            {{! v0.4.0 — see the memberCards branch above: remove-X in the corner, chevron in the column. }}
             {{#if @root.isGM}}
-              {{! Phase 8 (005) — GM control over whether players see this member's stats. Absolutely
-                  positioned into the empty space above the portrait so it disturbs no existing layout. }}
-              <label class="party-reveal-stats" data-tooltip="{{localize 'WFRP4EPARTY.RevealStatsTooltip'}}">
-                <input type="checkbox" data-action="toggleRevealStats" {{#if card.revealStats}}checked{{/if}}/>
-                <span>{{localize "WFRP4EPARTY.RevealStatsLabel"}}</span>
-              </label>
+              <a class="list-control member-card-remove" data-action="removeMember" title="{{localize 'WFRP4EPARTY.RemoveMemberTitle'}}"><i class="fas fa-xmark"></i></a>
             {{/if}}
-            <img class="member-portrait" src="{{card.img}}" data-action="openMemberSheet" data-tooltip="{{localize 'WFRP4EPARTY.OpenSheet'}}">
+            {{! v0.3.0 — see the memberCards branch above: toggle + portrait + controls in one column. }}
+            <div class="member-portrait-col">
+              {{#if @root.isGM}}
+                <label class="party-reveal-stats" data-tooltip="{{localize 'WFRP4EPARTY.RevealStatsTooltip'}}">
+                  <input type="checkbox" data-action="toggleRevealStats" {{#if card.revealStats}}checked{{/if}}/>
+                  <span>{{localize "WFRP4EPARTY.RevealStatsLabel"}}</span>
+                </label>
+              {{/if}}
+              <img class="member-portrait" src="{{card.img}}" data-action="openMemberSheet" data-tooltip="{{localize 'WFRP4EPARTY.OpenSheet'}}">
+              <div class="member-portrait-controls">
+                {{#if @root.isGM}}
+                <select class="party-member-category" data-action="setMemberCategory" data-tooltip="{{localize 'WFRP4EPARTY.MemberCategoryTooltip'}}">
+                  {{#each @root.memberCategoryOptions as |opt|}}
+                    <option value="{{opt.key}}" {{#if (eq opt.key card.category)}}selected{{/if}}>{{opt.label}}</option>
+                  {{/each}}
+                </select>
+                {{/if}}
+                <a class="member-collapse-toggle" data-action="toggleMemberCollapse" data-tooltip="{{localize 'WFRP4EPARTY.CollapseMemberTooltip'}}"><i class="fas fa-chevron-up"></i></a>
+              </div>
+            </div>
             <div class="member-body">
               <div class="member-row">
                 <div class="member-main">
                   <div class="member-topline">
                     <span class="label member-name">{{card.name}}</span>
-                    {{#if @root.isGM}}
-                    <select class="party-member-category" data-action="setMemberCategory" data-tooltip="{{localize 'WFRP4EPARTY.MemberCategoryTooltip'}}">
-                      {{#each @root.memberCategoryOptions as |opt|}}
-                        <option value="{{opt.key}}" {{#if (eq opt.key card.category)}}selected{{/if}}>{{opt.label}}</option>
-                      {{/each}}
-                    </select>
-                    <a class="list-control" data-action="removeMember" title="{{localize 'WFRP4EPARTY.RemoveMemberTitle'}}"><i class="fas fa-xmark"></i></a>
-                    {{/if}}
+                    {{#if card.careerStatus}}<span class="member-careerstatus">{{card.careerStatus}}</span>{{/if}}
                   </div>
                   <div class="wounds-bar">
                     <div class="wounds-bar-fill" style="width:{{pct card.wounds.value card.wounds.max true}}%"></div>
                     <div class="wounds-bar-text">{{card.wounds.value}} / {{card.wounds.max}}</div>
                   </div>
+                  {{! v0.3.0 — see the memberCards branch: label+value wrap as one unit. }}
                   <div class="member-pools">
-                    <span class="label">{{localize "WFRP4EPARTY.Fortune"}}</span> <span class="value">{{card.fortune}}</span>
-                    <span class="label">{{localize "WFRP4EPARTY.Resolve"}}</span> <span class="value">{{card.resolve}}</span>
-                    <span class="label">{{localize "WFRP4EPARTY.Movement"}}</span> <span class="value">{{card.move}}</span>
+                    <span class="member-pool"><span class="label">{{localize "WFRP4EPARTY.Fortune"}}</span> <span class="value">{{card.fortune}}</span></span>
+                    <span class="member-pool"><span class="label">{{localize "WFRP4EPARTY.Resolve"}}</span> <span class="value">{{card.resolve}}</span></span>
+                    <span class="member-pool"><span class="label">{{localize "WFRP4EPARTY.Movement"}}</span> <span class="value">{{card.move}}</span></span>
                   </div>
                   {{#if card.zeroWounds}}
                     <div class="label warning">{{localize "WFRP4EPARTY.ZeroWounds"}}</div>
@@ -245,39 +294,58 @@
               <span class="label member-name">{{card.name}}</span>
             </div>
           </div>
+        {{else if card.collapsed}}
+          {{! v0.4.0 — see the memberCards branch above: personal collapsed view, portrait + name. }}
+          <div class="member-card collapsed" data-id="{{card.id}}">
+            <img class="member-portrait" src="{{card.img}}" data-action="openMemberSheet" data-tooltip="{{localize 'WFRP4EPARTY.OpenSheet'}}">
+            <span class="label member-name">{{card.name}}</span>
+            <a class="member-collapse-toggle" data-action="toggleMemberCollapse" data-tooltip="{{localize 'WFRP4EPARTY.ExpandMemberTooltip'}}"><i class="fas fa-chevron-down"></i></a>
+            {{#if @root.isGM}}
+              <a class="list-control" data-action="removeMember" title="{{localize 'WFRP4EPARTY.RemoveMemberTitle'}}"><i class="fas fa-xmark"></i></a>
+            {{/if}}
+          </div>
         {{else}}
           <div class="member-card" data-id="{{card.id}}">
+            {{! v0.4.0 — see the memberCards branch above: remove-X in the corner, chevron in the column. }}
             {{#if @root.isGM}}
-              {{! Phase 8 (005) — GM control over whether players see this member's stats. Absolutely
-                  positioned into the empty space above the portrait so it disturbs no existing layout. }}
-              <label class="party-reveal-stats" data-tooltip="{{localize 'WFRP4EPARTY.RevealStatsTooltip'}}">
-                <input type="checkbox" data-action="toggleRevealStats" {{#if card.revealStats}}checked{{/if}}/>
-                <span>{{localize "WFRP4EPARTY.RevealStatsLabel"}}</span>
-              </label>
+              <a class="list-control member-card-remove" data-action="removeMember" title="{{localize 'WFRP4EPARTY.RemoveMemberTitle'}}"><i class="fas fa-xmark"></i></a>
             {{/if}}
-            <img class="member-portrait" src="{{card.img}}" data-action="openMemberSheet" data-tooltip="{{localize 'WFRP4EPARTY.OpenSheet'}}">
+            {{! v0.3.0 — see the memberCards branch above: toggle + portrait + controls in one column. }}
+            <div class="member-portrait-col">
+              {{#if @root.isGM}}
+                <label class="party-reveal-stats" data-tooltip="{{localize 'WFRP4EPARTY.RevealStatsTooltip'}}">
+                  <input type="checkbox" data-action="toggleRevealStats" {{#if card.revealStats}}checked{{/if}}/>
+                  <span>{{localize "WFRP4EPARTY.RevealStatsLabel"}}</span>
+                </label>
+              {{/if}}
+              <img class="member-portrait" src="{{card.img}}" data-action="openMemberSheet" data-tooltip="{{localize 'WFRP4EPARTY.OpenSheet'}}">
+              <div class="member-portrait-controls">
+                {{#if @root.isGM}}
+                <select class="party-member-category" data-action="setMemberCategory" data-tooltip="{{localize 'WFRP4EPARTY.MemberCategoryTooltip'}}">
+                  {{#each @root.memberCategoryOptions as |opt|}}
+                    <option value="{{opt.key}}" {{#if (eq opt.key card.category)}}selected{{/if}}>{{opt.label}}</option>
+                  {{/each}}
+                </select>
+                {{/if}}
+                <a class="member-collapse-toggle" data-action="toggleMemberCollapse" data-tooltip="{{localize 'WFRP4EPARTY.CollapseMemberTooltip'}}"><i class="fas fa-chevron-up"></i></a>
+              </div>
+            </div>
             <div class="member-body">
               <div class="member-row">
                 <div class="member-main">
                   <div class="member-topline">
                     <span class="label member-name">{{card.name}}</span>
-                    {{#if @root.isGM}}
-                    <select class="party-member-category" data-action="setMemberCategory" data-tooltip="{{localize 'WFRP4EPARTY.MemberCategoryTooltip'}}">
-                      {{#each @root.memberCategoryOptions as |opt|}}
-                        <option value="{{opt.key}}" {{#if (eq opt.key card.category)}}selected{{/if}}>{{opt.label}}</option>
-                      {{/each}}
-                    </select>
-                    <a class="list-control" data-action="removeMember" title="{{localize 'WFRP4EPARTY.RemoveMemberTitle'}}"><i class="fas fa-xmark"></i></a>
-                    {{/if}}
+                    {{#if card.careerStatus}}<span class="member-careerstatus">{{card.careerStatus}}</span>{{/if}}
                   </div>
                   <div class="wounds-bar">
                     <div class="wounds-bar-fill" style="width:{{pct card.wounds.value card.wounds.max true}}%"></div>
                     <div class="wounds-bar-text">{{card.wounds.value}} / {{card.wounds.max}}</div>
                   </div>
+                  {{! v0.3.0 — see the memberCards branch: label+value wrap as one unit. }}
                   <div class="member-pools">
-                    <span class="label">{{localize "WFRP4EPARTY.Fortune"}}</span> <span class="value">{{card.fortune}}</span>
-                    <span class="label">{{localize "WFRP4EPARTY.Resolve"}}</span> <span class="value">{{card.resolve}}</span>
-                    <span class="label">{{localize "WFRP4EPARTY.Movement"}}</span> <span class="value">{{card.move}}</span>
+                    <span class="member-pool"><span class="label">{{localize "WFRP4EPARTY.Fortune"}}</span> <span class="value">{{card.fortune}}</span></span>
+                    <span class="member-pool"><span class="label">{{localize "WFRP4EPARTY.Resolve"}}</span> <span class="value">{{card.resolve}}</span></span>
+                    <span class="member-pool"><span class="label">{{localize "WFRP4EPARTY.Movement"}}</span> <span class="value">{{card.move}}</span></span>
                   </div>
                   {{#if card.zeroWounds}}
                     <div class="label warning">{{localize "WFRP4EPARTY.ZeroWounds"}}</div>
@@ -358,39 +426,58 @@
               <span class="label member-name">{{card.name}}</span>
             </div>
           </div>
+        {{else if card.collapsed}}
+          {{! v0.4.0 — see the memberCards branch above: personal collapsed view, portrait + name. }}
+          <div class="member-card collapsed" data-id="{{card.id}}">
+            <img class="member-portrait" src="{{card.img}}" data-action="openMemberSheet" data-tooltip="{{localize 'WFRP4EPARTY.OpenSheet'}}">
+            <span class="label member-name">{{card.name}}</span>
+            <a class="member-collapse-toggle" data-action="toggleMemberCollapse" data-tooltip="{{localize 'WFRP4EPARTY.ExpandMemberTooltip'}}"><i class="fas fa-chevron-down"></i></a>
+            {{#if @root.isGM}}
+              <a class="list-control" data-action="removeMember" title="{{localize 'WFRP4EPARTY.RemoveMemberTitle'}}"><i class="fas fa-xmark"></i></a>
+            {{/if}}
+          </div>
         {{else}}
           <div class="member-card" data-id="{{card.id}}">
+            {{! v0.4.0 — see the memberCards branch above: remove-X in the corner, chevron in the column. }}
             {{#if @root.isGM}}
-              {{! Phase 8 (005) — GM control over whether players see this member's stats. Absolutely
-                  positioned into the empty space above the portrait so it disturbs no existing layout. }}
-              <label class="party-reveal-stats" data-tooltip="{{localize 'WFRP4EPARTY.RevealStatsTooltip'}}">
-                <input type="checkbox" data-action="toggleRevealStats" {{#if card.revealStats}}checked{{/if}}/>
-                <span>{{localize "WFRP4EPARTY.RevealStatsLabel"}}</span>
-              </label>
+              <a class="list-control member-card-remove" data-action="removeMember" title="{{localize 'WFRP4EPARTY.RemoveMemberTitle'}}"><i class="fas fa-xmark"></i></a>
             {{/if}}
-            <img class="member-portrait" src="{{card.img}}" data-action="openMemberSheet" data-tooltip="{{localize 'WFRP4EPARTY.OpenSheet'}}">
+            {{! v0.3.0 — see the memberCards branch above: toggle + portrait + controls in one column. }}
+            <div class="member-portrait-col">
+              {{#if @root.isGM}}
+                <label class="party-reveal-stats" data-tooltip="{{localize 'WFRP4EPARTY.RevealStatsTooltip'}}">
+                  <input type="checkbox" data-action="toggleRevealStats" {{#if card.revealStats}}checked{{/if}}/>
+                  <span>{{localize "WFRP4EPARTY.RevealStatsLabel"}}</span>
+                </label>
+              {{/if}}
+              <img class="member-portrait" src="{{card.img}}" data-action="openMemberSheet" data-tooltip="{{localize 'WFRP4EPARTY.OpenSheet'}}">
+              <div class="member-portrait-controls">
+                {{#if @root.isGM}}
+                <select class="party-member-category" data-action="setMemberCategory" data-tooltip="{{localize 'WFRP4EPARTY.MemberCategoryTooltip'}}">
+                  {{#each @root.memberCategoryOptions as |opt|}}
+                    <option value="{{opt.key}}" {{#if (eq opt.key card.category)}}selected{{/if}}>{{opt.label}}</option>
+                  {{/each}}
+                </select>
+                {{/if}}
+                <a class="member-collapse-toggle" data-action="toggleMemberCollapse" data-tooltip="{{localize 'WFRP4EPARTY.CollapseMemberTooltip'}}"><i class="fas fa-chevron-up"></i></a>
+              </div>
+            </div>
             <div class="member-body">
               <div class="member-row">
                 <div class="member-main">
                   <div class="member-topline">
                     <span class="label member-name">{{card.name}}</span>
-                    {{#if @root.isGM}}
-                    <select class="party-member-category" data-action="setMemberCategory" data-tooltip="{{localize 'WFRP4EPARTY.MemberCategoryTooltip'}}">
-                      {{#each @root.memberCategoryOptions as |opt|}}
-                        <option value="{{opt.key}}" {{#if (eq opt.key card.category)}}selected{{/if}}>{{opt.label}}</option>
-                      {{/each}}
-                    </select>
-                    <a class="list-control" data-action="removeMember" title="{{localize 'WFRP4EPARTY.RemoveMemberTitle'}}"><i class="fas fa-xmark"></i></a>
-                    {{/if}}
+                    {{#if card.careerStatus}}<span class="member-careerstatus">{{card.careerStatus}}</span>{{/if}}
                   </div>
                   <div class="wounds-bar">
                     <div class="wounds-bar-fill" style="width:{{pct card.wounds.value card.wounds.max true}}%"></div>
                     <div class="wounds-bar-text">{{card.wounds.value}} / {{card.wounds.max}}</div>
                   </div>
+                  {{! v0.3.0 — see the memberCards branch: label+value wrap as one unit. }}
                   <div class="member-pools">
-                    <span class="label">{{localize "WFRP4EPARTY.Fortune"}}</span> <span class="value">{{card.fortune}}</span>
-                    <span class="label">{{localize "WFRP4EPARTY.Resolve"}}</span> <span class="value">{{card.resolve}}</span>
-                    <span class="label">{{localize "WFRP4EPARTY.Movement"}}</span> <span class="value">{{card.move}}</span>
+                    <span class="member-pool"><span class="label">{{localize "WFRP4EPARTY.Fortune"}}</span> <span class="value">{{card.fortune}}</span></span>
+                    <span class="member-pool"><span class="label">{{localize "WFRP4EPARTY.Resolve"}}</span> <span class="value">{{card.resolve}}</span></span>
+                    <span class="member-pool"><span class="label">{{localize "WFRP4EPARTY.Movement"}}</span> <span class="value">{{card.move}}</span></span>
                   </div>
                   {{#if card.zeroWounds}}
                     <div class="label warning">{{localize "WFRP4EPARTY.ZeroWounds"}}</div>

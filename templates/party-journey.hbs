@@ -2,8 +2,12 @@
   {{#if journey}}
   <div class="journey-panel">
 
+    {{! v0.4.0 — GM-only: this is a purchase prompt, and the only person who can act on it is the
+        GM who owns the world's modules. Players just saw their GM told to buy something. }}
     {{#unless journey.eisActive}}
-    <div class="journey-notice">{{localize "WFRP4EPARTY.JourneySimpleModeNotice"}}</div>
+      {{#if journey.isGM}}
+      <div class="journey-notice">{{localize "WFRP4EPARTY.JourneySimpleModeNotice"}}</div>
+      {{/if}}
     {{/unless}}
 
     <details class="journey-section journey-config" open>
@@ -45,7 +49,10 @@
         </div>
       </div>
       {{#if journey.isGM}}
-      <div class="journey-hint">{{journey.hintText}}</div>
+      {{! v0.4.0 — hintText is now empty whenever no hint qualifies (simple mode with the party in
+          neither Move band), and .journey-hint carries its own border/background, so an ungated
+          div would render as an empty box. }}
+      {{#if journey.hintText}}<div class="journey-hint">{{journey.hintText}}</div>{{/if}}
       <div class="journey-lifecycle-buttons">
         {{#if journey.canStart}}
           <a class="group-roll" data-action="startJourney">{{localize "WFRP4EPARTY.JourneyStartButton"}}</a>
@@ -91,7 +98,7 @@
       {{else}}
         {{#if journey.isGM}}
           <div class="form-group">
-            <label>{{localize "WFRP4EPARTY.JourneyWeatherLabel"}}</label>
+            <label>{{localize "WFRP4EPARTY.JourneyWeather"}}</label>
             <select data-action="setWeatherLabel">
               <option value="">—</option>
               {{#each journey.stageRecord.weatherLadder as |band|}}

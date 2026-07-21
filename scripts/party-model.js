@@ -1,3 +1,29 @@
+import * as currency from "./currency.js";
+
+const MODULE_ID = "wfrp4e-party-sheet";
+
+function primaryItemData(denom, quantity) {
+  return {
+    name: denom.label,
+    type: "money",
+    img: denom.img || "icons/svg/coins.svg",
+    system: {
+      quantity: { value: quantity },
+      encumbrance: { value: denom.encumbrance },
+      coinValue: { value: denom.coinValue },
+    },
+  };
+}
+
+// Secondary currencies (no exchange rate, Design Decisions row 3) materialize as ordinary money
+// items with coinValue 0, matched by the module's own secondaryId flag rather than a value —
+// see transfer.js's findSecondaryStack / stackIdentity for the read side of this identity.
+function secondaryItemData(sec, quantity) {
+  const data = primaryItemData({ ...sec, coinValue: 0 }, quantity);
+  foundry.utils.setProperty(data, `flags.${MODULE_ID}.secondaryId`, sec.id);
+  return data;
+}
+
 export class PartyModel extends BaseActorModel
 {
   static preventItemTypes = [
@@ -211,15 +237,28 @@ export class PartyModel extends BaseActorModel
   // override seeds money ONLY — no basic skills, no confirm prompt (the `prompt` arg the
   // system passes is intentionally ignored). Fail-soft: allMoneyItems() resolves to [] without
   // wfrp4e-core installed (HC6 — the sheet must still render; money section shows zeros).
+  // Phase 9 (Item Piles currencies, task 4.2) — union the system's own money compendium items
+  // with the live Item Piles currency config: a party now seeds a row for every configured
+  // primary AND secondary denomination at quantity 0, not just whatever wfrp4e-core ships.
+  // Under the stock core-three config this is a no-op union (every configured coinValue is
+  // already covered by the system list) — regression-safe.
   async getInitialItems() {
-    const items = await game.wfrp4e.utility.allMoneyItems();
-    if (!items?.length) return [];
-    return items
-      .map(m => {
-        m.system.quantity.value = 0;
-        return m;
-      })
-      .sort((a, b) => (b.system.coinValue?.value ?? 0) - (a.system.coinValue?.value ?? 0));
+    const systemItems = (await game.wfrp4e.utility.allMoneyItems()) ?? [];
+    const seeded = systemItems.map(m => {
+      const clone = foundry.utils.deepClone(m);
+      clone.system.quantity.value = 0;
+      return clone;
+    });
+    const knownPrimary = new Set(seeded.map(m => m.system.coinValue?.value ?? 0).filter(v => v > 0));
+    for (const denom of currency.getDenominations()) {
+      if (knownPrimary.has(denom.coinValue)) continue;
+      seeded.push(primaryItemData(denom, 0));
+      knownPrimary.add(denom.coinValue);
+    }
+    for (const sec of currency.getSecondaryDenominations()) {
+      seeded.push(secondaryItemData(sec, 0));
+    }
+    return seeded.sort((a, b) => (b.system.coinValue?.value ?? 0) - (a.system.coinValue?.value ?? 0));
   }
 }
 
@@ -265,6 +304,19 @@ Hooks.on("init", () => {
     type: Boolean,
     default: false,
   });
+
+  // v0.4.0 — per-member card collapse. Client scope for the same reason as the sort toggle
+  // above: collapsing is a personal view preference, so one viewer folding a card away must
+  // not change what anyone else sees, and a player needs no write permission on the party
+  // actor to use it. Flat `${partyId}:${memberId}` keys (NOT a nested path — `game.settings`
+  // stores this verbatim and dotted keys would be read back as a path by getProperty callers).
+  // Only collapsed members are stored; expanding deletes the key.
+  game.settings.register("wfrp4e-party-sheet", "collapsedMembers", {
+    scope: "client",
+    config: false,
+    type: Object,
+    default: {},
+  });
 })
 
 // Phase 7 (R7.8) — idempotent backfill for party actors created before this phase shipped
@@ -273,18 +325,39 @@ Hooks.on("init", () => {
 // duplicates: re-running finds nothing missing once the three canonical denominations
 // exist. Exported (not inlined in the ready hook) so the smoke harness can re-run it
 // directly against a single disposable party without waiting on a world reload.
+// Phase 9 (task 4.2) — extended to also backfill any configured primary/secondary denomination
+// not covered by the system's money compendium (a GM-defined currency that isn't a wfrp4e-core
+// item, or a secondary currency, which the system never knows about at all). Idempotent by the
+// same rule as before: primaries matched by coinValue, secondaries by the module's secondaryId
+// flag — never duplicates on repeat runs.
 export async function backfillPartyCoins(party) {
+  const itemsData = [];
+
   const templates = await game.wfrp4e.utility.allMoneyItems();
-  if (!templates?.length) return;
+  if (templates?.length) {
+    const missing = templates.filter(t => !party.items.some(i => i.type === "money" && i.system.coinValue?.value === t.system.coinValue?.value));
+    for (const t of missing) {
+      const data = foundry.utils.deepClone(t);
+      data.system.quantity.value = 0;
+      itemsData.push(data);
+    }
+  }
 
-  const missing = templates.filter(t => !party.items.some(i => i.type === "money" && i.system.coinValue?.value === t.system.coinValue?.value));
-  if (!missing.length) return;
+  const havePrimary = new Set(party.items.filter(i => i.type === "money").map(i => i.system.coinValue?.value ?? 0).filter(v => v > 0));
+  itemsData.forEach(d => { if ((d.system.coinValue?.value ?? 0) > 0) havePrimary.add(d.system.coinValue.value); });
+  for (const denom of currency.getDenominations()) {
+    if (havePrimary.has(denom.coinValue)) continue;
+    itemsData.push(primaryItemData(denom, 0));
+    havePrimary.add(denom.coinValue);
+  }
 
-  const itemsData = missing.map(t => {
-    const data = foundry.utils.deepClone(t);
-    data.system.quantity.value = 0;
-    return data;
-  });
+  const haveSecondary = new Set(party.items.filter(i => i.type === "money").map(i => i.getFlag(MODULE_ID, "secondaryId")).filter(Boolean));
+  for (const sec of currency.getSecondaryDenominations()) {
+    if (haveSecondary.has(sec.id)) continue;
+    itemsData.push(secondaryItemData(sec, 0));
+  }
+
+  if (!itemsData.length) return;
   await party.createEmbeddedDocuments("Item", itemsData);
 }
 

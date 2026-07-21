@@ -35,7 +35,10 @@
   <div class="party-money-summary">
     <div class="party-money-total">
       <span class="label">{{localize "WFRP4EPARTY.PartyCoin"}}:</span>
-      <span class="value">{{inventory.money.gc}}{{localize "MARKET.Abbrev.GC"}} {{inventory.money.ss}}{{localize "MARKET.Abbrev.SS"}} {{inventory.money.bp}}{{localize "MARKET.Abbrev.BP"}}</span>
+      {{! Item Piles currencies (Phase 9) — Handlebars cannot compose a localize key dynamically,
+          so the abbreviation strings are pre-resolved in _prepareInventory and handed over as a
+          plain each-loop array, not per-key field accesses. }}
+      <span class="value">{{#each inventory.money.denominations}}{{this.count}}{{this.abbrev}} {{/each}}</span>
     </div>
     <div class="list-controls">
       <a data-action="depositCoins">{{localize "WFRP4EPARTY.DepositCoins"}}</a>
@@ -43,10 +46,23 @@
       {{! Consolidation rewrites the shared pool's denominations for everyone, so it is GM-only —
           canWithdraw is true for any player owning a member and was too permissive here. }}
       {{#if isGM}}
-        <a data-action="consolidateMoney">{{localize "WFRP4EPARTY.ConsolidateMoney"}}</a>
+        {{#if inventory.money.chainValid}}
+          <a data-action="consolidateMoney">{{localize "WFRP4EPARTY.ConsolidateMoney"}}</a>
+        {{else}}
+          <a class="disabled" data-tooltip="{{localize 'WFRP4EPARTY.ConsolidateDisabledInvalidChain'}}">{{localize "WFRP4EPARTY.ConsolidateMoney"}}</a>
+        {{/if}}
       {{/if}}
     </div>
   </div>
+
+  {{#if inventory.money.secondary.length}}
+  <div class="party-money-summary party-money-secondary">
+    <div class="party-money-total">
+      <span class="label">{{localize "WFRP4EPARTY.SecondaryCurrencyHeading"}}:</span>
+      <span class="value">{{#each inventory.money.secondary}}{{this.count}} {{this.abbrev}} {{/each}}</span>
+    </div>
+  </div>
+  {{/if}}
 
   <div class="party-inventory-list">
     {{#if inventory.money.items.length}}
@@ -139,11 +155,17 @@
           <div class="list-name">{{localize "WFRP4EPARTY.QuestItemsHeading"}}</div>
           <a class="small party-col-qty">{{localize "SHEET.QtyAbbrev"}}</a>
           <div class="small">{{localize "SHEET.EncAbbrev"}}</div>
+          {{! v0.4.0 — quest rows carry value like any category row; the column and the subtotal
+              below mirror the category surface exactly. }}
+          <div class="small party-col-value">{{localize "WFRP4EPARTY.ValueHeader"}}</div>
           <div class="list-controls"></div>
         </div>
         <div class="list-content">
           {{#each inventory.questItems as |item|}}
-            <div class="list-row" data-id="{{item.id}}">
+            {{! v0.3.0 — same GM-only data-uuid as a category row (see the note above): without it
+                the system's right-click menu finds no item and silently declines to open, and the
+                row fails warhammer-lib's drag selector. Quest rows are ordinary pool items. }}
+            <div class="list-row" data-id="{{item.id}}"{{#if @root.isGM}} data-uuid="{{item.uuid}}"{{/if}}>
               <div class="row-content">
                 <div class="list-name">
                   <img src="{{item.img}}">
@@ -155,6 +177,7 @@
                   <a class="small party-col-qty">{{item.quantity}}</a>
                 {{/if}}
                 <div class="small">{{item.encumbrance}}</div>
+                <div class="small party-col-value">{{item.valueLabel}}</div>
                 <div class="list-controls">
                   {{#if item.canWithdraw}}
                     <a class="list-control party-kebab" data-tooltip="{{localize 'WFRP4EPARTY.ItemMenuTooltip'}}"><i class="fas fa-ellipsis-vertical"></i></a>
@@ -169,6 +192,15 @@
           {{/each}}
         </div>
       </div>
+      {{! v0.4.0 — quest subtotal, kept separate from the categories' Grand Total above. Gated on
+          the list being non-empty so the GM's always-visible empty drop target does not trail a
+          "0d" row. }}
+      {{#if inventory.questItems.length}}
+        <div class="party-grand-total">
+          <span class="label">{{localize "WFRP4EPARTY.QuestTotalLabel"}}:</span>
+          <span class="value">{{inventory.questTotalLabel}}</span>
+        </div>
+      {{/if}}
     {{/if}}
 
     {{#unless inventory.money.items.length}}

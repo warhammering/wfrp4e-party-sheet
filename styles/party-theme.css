@@ -358,6 +358,45 @@
   transform: scale(1.015);
 }
 
+.wfrp4e.actor.sheet.application.party-sheet .party-member-category {
+  -webkit-appearance: none;
+  appearance: none;
+  padding: 0 1.35rem 0 0.35rem;
+  border: 1px solid var(--party-line-strong);
+  border-radius: 3px;
+  background-color: rgba(255, 251, 226, 0.62);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--party-oxblood) 50%),
+    linear-gradient(135deg, var(--party-oxblood) 50%, transparent 50%);
+  background-position: right 0.65rem center, right 0.38rem center;
+  background-repeat: no-repeat;
+  background-size: 0.32rem 0.32rem, 0.32rem 0.32rem;
+  box-shadow:
+    0 2px 4px rgba(47, 28, 14, 0.12) inset,
+    0 1px 0 rgba(255, 255, 241, 0.58);
+  color: var(--party-ink);
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-member-category:hover,
+.wfrp4e.actor.sheet.application.party-sheet .party-member-category:focus {
+  border-color: var(--party-brass);
+  box-shadow: 0 0 0 2px rgba(169, 137, 73, 0.18);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-member-category option {
+  background: #eee2bd;
+  color: var(--party-ink);
+}
+
+.wfrp4e.actor.sheet.application.party-sheet .party-member-category option:checked {
+  background: var(--party-oxblood)
+    linear-gradient(0deg, var(--party-oxblood) 0%, var(--party-oxblood) 100%);
+  color: #f2e5bb;
+}
+
 .wfrp4e.actor.sheet.application.party-sheet .member-body {
   gap: 0.45rem;
 }

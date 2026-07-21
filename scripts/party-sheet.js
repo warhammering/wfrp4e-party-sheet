@@ -1,12 +1,12 @@
 import * as transfer from "./transfer.js";
 import { JourneyEngine } from "./journey.js";
 import { registerMutationHandler, requestMutation } from "./mutation-queue.js";
+import * as currency from "./currency.js";
 
 const MODULE_ID = "wfrp4e-party-sheet";
 const PARTY_ACTOR_TYPE = "wfrp4e-party-sheet.party";
 const CHARACTERISTIC_KEYS = ["ws", "bs", "s", "t", "i", "ag", "dex", "int", "wp", "fel"];
 const PHYSICAL_CATEGORY_TYPES = ["weapon", "armour", "ammunition", "trapping", "container"];
-const COIN_VALUES = { gc: 240, ss: 12, bp: 1 };
 // Phase 8 (004) — marker rides in the drag payload's `options` bag, which the receiving sheet
 // forwards verbatim into createEmbeddedDocuments (warhammer-lib.js:10845). The createItem hook
 // at the bottom of this file consumes it to turn the stock COPY into a MOVE.
@@ -35,28 +35,38 @@ function userOwnsActor(user, actor) {
 
 // Phase 8 (001) — shared brass<->coins math, extracted from the money summary so the new
 // per-row/grand-total value math (task 2.2) doesn't duplicate the floor/modulo logic.
+// Phase 9 (Item Piles currencies) — generalized to the live configured primary denominations
+// (currency.js; falls back to the core three when Item Piles is absent/inactive). Returns a
+// coinValue-keyed object, e.g. { 240: 1, 12: 3, 1: 5 } under the stock config.
 function brassToCoins(totalBrass) {
-  const remainderAfterGc = totalBrass % COIN_VALUES.gc;
-  return {
-    gc: Math.floor(totalBrass / COIN_VALUES.gc),
-    ss: Math.floor(remainderAfterGc / COIN_VALUES.ss),
-    bp: remainderAfterGc % COIN_VALUES.ss,
-  };
+  const denoms = {};
+  let remaining = totalBrass;
+  for (const denom of currency.getDenominations()) {
+    if (denom.coinValue <= 0) continue;
+    denoms[denom.coinValue] = Math.trunc(remaining / denom.coinValue);
+    remaining = remaining % denom.coinValue;
+  }
+  return denoms;
 }
 
+// Item PRICE conversion (`item.system.price`) is the wfrp4e SYSTEM's own {gc,ss,bp} schema —
+// legitimately fixed-shape, unrelated to Item Piles' currency config (plan Design Decisions /
+// Level 3 §Quality note: do not conflate the two paths). Kept literal on purpose.
 function coinsToBrass(price) {
-  return (price?.gc ?? 0) * COIN_VALUES.gc + (price?.ss ?? 0) * COIN_VALUES.ss + (price?.bp ?? 0) * COIN_VALUES.bp;
+  return (price?.gc ?? 0) * 240 + (price?.ss ?? 0) * 12 + (price?.bp ?? 0) * 1;
 }
 
 // Phase 8 (001, v0.2.1) — a coin-value label that omits zero denominations: 5 brass reads "5d",
 // 2 shillings "2/-", not "0GC 0SS 5BP". An all-zero value renders as a single dash. Built here
 // rather than in the template so the abbreviations localize once and the zero-suppression logic
 // lives in one place (item value cells + the grand-total row both use it).
+// Phase 9 — generalized: loops the configured primary denominations instead of three literal keys.
 function formatCoinLabel(coins) {
   const parts = [];
-  if (coins.gc) parts.push(`${coins.gc}${game.i18n.localize("MARKET.Abbrev.GC")}`);
-  if (coins.ss) parts.push(`${coins.ss}${game.i18n.localize("MARKET.Abbrev.SS")}`);
-  if (coins.bp) parts.push(`${coins.bp}${game.i18n.localize("MARKET.Abbrev.BP")}`);
+  for (const denom of currency.getDenominations()) {
+    const count = coins[denom.coinValue];
+    if (count) parts.push(`${count}${denom.abbrev}`);
+  }
   return parts.length ? parts.join(" ") : "—";
 }
 
@@ -224,6 +234,7 @@ export class PartySheet extends BaseWFRP4eActorSheet {
       setCapacityBonus: PartySheet._onSetCapacityBonus,
       setMemberCategory: PartySheet._onSetMemberCategory,
     toggleRevealStats: PartySheet._onToggleRevealStats,
+      toggleMemberCollapse: PartySheet._onToggleMemberCollapse,
       toggleInventorySortAlpha: PartySheet._onToggleInventorySortAlpha,
     },
     position: {
@@ -309,11 +320,18 @@ export class PartySheet extends BaseWFRP4eActorSheet {
     // Phase 8 (005) — `revealStats` is the ONLY way a non-GM receives a populated NPC card, and
     // it is opt-in per member. The redaction is still structural: an un-revealed card is built
     // without the fields, never populated-then-hidden (Risk 7.B).
+    // v0.4.0 — `collapsed` is a personal view preference layered on TOP of the redaction above,
+    // never a substitute for it: the redacted branch returns first, so a card only gains the
+    // flag once this viewer is already entitled to its contents. Hiding fields the viewer may
+    // see is not a Risk 7.B concern (that rule is about never shipping secret data to a client
+    // and hiding it in the template).
+    const collapsedMembers = game.settings.get(MODULE_ID, "collapsedMembers") ?? {};
     const displayCards = fullCards.map(c => {
       if (!c.vacant && !isGM && !c.revealStats) {
         return { id: c.id, vacant: false, isNpc: c.isNpc, npcRedacted: true, name: c.name, img: c.img, category: c.category, revealStats: false };
       }
-      return c;
+      if (c.vacant) return c;
+      return { ...c, collapsed: collapsedMembers[`${this.document.id}:${c.id}`] === true };
     });
 
     // Phase 8 (003) — tagged members (untagged keep today's PC/NPC placement) move to a
@@ -379,7 +397,10 @@ export class PartySheet extends BaseWFRP4eActorSheet {
     const hintParts = [];
     if (lowestMove && lowestMove <= 3) hintParts.push(game.i18n.localize("WFRP4EPARTY.JourneyHintLowMove"));
     if (lowestMove && lowestMove >= 6) hintParts.push(game.i18n.localize("WFRP4EPARTY.JourneyHintMounted"));
-    hintParts.push(game.i18n.localize("WFRP4EPARTY.JourneyHintNavigation"));
+    // v0.4.0 — the Navigation/Lore Stage-reduction hint paraphrases an EiS Travel rule, so it is
+    // EiS-gated like the rest of that surface. The two Move-band hints above stay in simple mode:
+    // they advise on this module's own Stage count, not on an EiS mechanic.
+    if (eisActive) hintParts.push(game.i18n.localize("WFRP4EPARTY.JourneyHintNavigation"));
 
     // Hoisted so _prepareStageContext can derive per-member option availability from it.
     const endeavourOptions = Object.keys(JourneyEngine.ENDEAVOUR_SPECS).map(key => ({
@@ -521,9 +542,24 @@ export class PartySheet extends BaseWFRP4eActorSheet {
       max: actor.system.status.wounds.max
     };
 
+    // v0.3.0 — "<Career> - <Status>" subtitle beside the member name.
+    // The career MUST come from the career Item flagged current (template.json career.current),
+    // NOT from system.details.career.value: that field reads EMPTY on live characters that do
+    // have a current career (probed 2026-07-21 against Bertelis/Test Player/Alessio), so it is
+    // not a usable source. An actor with careers but none tagged current shows no career at all.
+    const careers = actor.itemTags?.["career"] ?? actor.items.filter(i => i.type === "career");
+    const careerName = careers.find(i => i.system.current?.value === true)?.name ?? "";
+    // details.status.value is already stored pre-formatted as "Gold 1" / "Brass 4" — the tier +
+    // standing halves next to it need no recomposition (same probe).
+    const statusLabel = actor.system.details?.status?.value ?? "";
+    // Either half may be missing; join collapses to whichever exists, or "" so the template's
+    // {{#if}} drops the span entirely rather than rendering an orphan separator.
+    const careerStatus = [careerName, statusLabel].filter(Boolean).join(" - ");
+
     return {
       actor,
       name: actor.name,
+      careerStatus,
       canRoll: game.user.isGM || actor.isOwner,
       canRest: game.user.isGM || actor.isOwner,
       recuperating: !!actor.getFlag("wfrp4e-party-sheet", "recuperate"),
@@ -623,23 +659,67 @@ export class PartySheet extends BaseWFRP4eActorSheet {
       };
     }
 
-    const questItems = questFlagged.map(item => ({
-      id: item.id,
-      name: item.name,
-      img: item.img,
-      quantity: item.system.quantity?.value ?? 0,
-      encumbrance: item.system.encumbrance?.total ?? 0,
-      canWithdraw: game.user.isGM,
-      canEdit: game.user.isGM,
-      canDelete: game.user.isGM
-    }));
+    // v0.3.0 — quest rows get the same ordering treatment as category rows. They were previously
+    // left in raw collection order, so a drag-reorder wrote `sort` values the render ignored.
+    const questSorted = alphaSort
+      ? [...questFlagged].sort((a, b) => a.name.localeCompare(b.name))
+      : [...questFlagged].sort((a, b) => a.sort - b.sort);
+
+    // v0.4.0 — quest rows now carry stack value and total into their OWN subtotal, kept separate
+    // from grandTotalBrass above. Phase 8 (001) excluded quest items from the value surface
+    // entirely; the exclusion from the MAIN total stands (they are a separate section and folding
+    // them in would silently change a number the GM already reads), but they are no longer
+    // valueless — same unit-price x quantity arithmetic as a category row.
+    let questTotalBrass = 0;
+    const questItems = questSorted.map(item => {
+      const quantity = item.system.quantity?.value ?? 0;
+      const stackBrass = coinsToBrass(item.system.price) * quantity;
+      questTotalBrass += stackBrass;
+      return {
+        id: item.id,
+        // v0.3.0 — `uuid` was missing here (and `data-uuid` from the template row), which silently
+        // disabled BOTH the system's right-click menu and drag entirely: every entry in
+        // _getContextMenuOptions is gated on `li.dataset.uuid` (wfrp4e.js:3562), and warhammer-lib's
+        // drag selector is `[data-uuid]:not([data-nodrag])`. Quest rows are ordinary pool items and
+        // get the same affordances as any other row.
+        uuid: item.uuid,
+        name: item.name,
+        img: item.img,
+        quantity,
+        encumbrance: item.system.encumbrance?.total ?? 0,
+        value: brassToCoins(stackBrass),
+        valueLabel: formatCoinLabel(brassToCoins(stackBrass)),
+        canWithdraw: game.user.isGM,
+        canEdit: game.user.isGM,
+        canDelete: game.user.isGM
+      };
+    });
 
     // Money rows share the same drag/drop path as category rows, so they need the same explicit
     // `sort` ordering — see the note above.
     const moneyItems = partyItems.filter(i => i.type === "money").sort((a, b) => a.sort - b.sort);
-    const totalBrass = moneyItems.reduce((sum, i) => sum + (i.system.coinValue?.value ?? 0) * (i.system.quantity?.value ?? 0), 0);
+    // Phase 9 — a coin whose value is no longer in the configured primary list is excluded from
+    // the pool total (mirrors transfer.js's sumCoinBrass exclusion, task 2.3), same as an
+    // unconfigured leftover coin never being redistributed by Consolidate.
+    const primaryCoinValues = new Set(currency.getDenominations().map(d => d.coinValue));
+    const totalBrass = moneyItems.reduce((sum, i) => {
+      const coinValue = i.system.coinValue?.value ?? 0;
+      return primaryCoinValues.has(coinValue) ? sum + coinValue * (i.system.quantity?.value ?? 0) : sum;
+    }, 0);
+    const moneyCoins = brassToCoins(totalBrass);
+    // Pre-resolved label strings — Handlebars cannot compose a localize key dynamically, so the
+    // template's money row is a plain {{#each}} over this array (task 3.3), not per-key accesses.
+    const denominations = currency.getDenominations().map(d => ({ coinValue: d.coinValue, abbrev: d.abbrev, count: moneyCoins[d.coinValue] ?? 0 }));
+    // Secondary currencies: own row, excluded from the total above and from Consolidate (Design
+    // Decisions row 3 — no exchange rate, cannot be summed or split).
+    const secondary = currency.getSecondaryDenominations().map(sec => {
+      const item = moneyItems.find(i => i.getFlag(MODULE_ID, "secondaryId") === sec.id);
+      return { id: sec.id, label: sec.label, abbrev: sec.abbrev || sec.label, count: item?.system.quantity?.value ?? 0 };
+    });
     const money = {
-      ...brassToCoins(totalBrass),
+      denominations,
+      secondary,
+      chainValid: currency.isChainValid(),
       total: totalBrass,
       items: moneyItems.map(item => ({
         id: item.id,
@@ -667,7 +747,13 @@ export class PartySheet extends BaseWFRP4eActorSheet {
     const showQuestSection = questItems.length > 0 || game.user.isGM;
 
     const grandTotalCoins = brassToCoins(grandTotalBrass);
-    return { categories, hasCategories, questItems, showQuestSection, money, encumbrance, canWithdraw, grandTotal: grandTotalCoins, grandTotalLabel: formatCoinLabel(grandTotalCoins), alphaSort };
+    const questTotalCoins = brassToCoins(questTotalBrass);
+    return {
+      categories, hasCategories, questItems, showQuestSection, money, encumbrance, canWithdraw,
+      grandTotal: grandTotalCoins, grandTotalLabel: formatCoinLabel(grandTotalCoins),
+      questTotal: questTotalCoins, questTotalLabel: formatCoinLabel(questTotalCoins),
+      alphaSort
+    };
   }
 
   async _promptTransferAmount(fullQty, titleKey) {
@@ -686,22 +772,47 @@ export class PartySheet extends BaseWFRP4eActorSheet {
     return amount;
   }
 
+  // Phase 9 (Item Piles currencies) — one numeric input per configured primary denomination,
+  // plus one per secondary (task 3.2). Fields are indexed (p0, p1, … / s0, s1, …), not keyed by
+  // abbreviation/name, since a GM-configured currency label is arbitrary text and unsafe as an
+  // HTML attribute value. Under the stock core-three config this renders exactly 3 inputs,
+  // matching v0.3.0.
   async _promptCoinAmount(titleKey) {
+    const primary = currency.getDenominations();
+    const secondary = currency.getSecondaryDenominations();
+    // Labels come from GM-authored Item Piles config, so escape them as element content too —
+    // indexed field names keep them out of attributes, but they are still arbitrary text.
+    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
+    const primaryFields = primary.map((d, i) =>
+      `<div class="form-group"><label>${esc(d.abbrev || d.label)}</label><input type="number" name="p${i}" value="0" min="0"/></div>`
+    ).join("");
+    const secondaryFields = secondary.map((s, i) =>
+      `<div class="form-group"><label>${esc(s.label)}</label><input type="number" name="s${i}" value="0" min="0"/></div>`
+    ).join("");
     const result = await foundry.applications.api.DialogV2.wait({
       window: { title: game.i18n.localize(titleKey) },
-      content: `
-        <div class="form-group"><label>${game.i18n.localize("MARKET.Abbrev.GC")}</label><input type="number" name="gc" value="0" min="0"/></div>
-        <div class="form-group"><label>${game.i18n.localize("MARKET.Abbrev.SS")}</label><input type="number" name="ss" value="0" min="0"/></div>
-        <div class="form-group"><label>${game.i18n.localize("MARKET.Abbrev.BP")}</label><input type="number" name="bp" value="0" min="0"/></div>`,
+      content: `${primaryFields}${secondaryFields}`,
       buttons: [
         { action: "confirm", label: game.i18n.localize("WFRP4EPARTY.Confirm"), default: true, callback: (event, button) => new foundry.applications.ux.FormDataExtended(button.form).object },
         { action: "cancel", label: game.i18n.localize("WFRP4EPARTY.Cancel") }
       ]
     });
     if (!result || result === "cancel") return null;
-    const coins = { gc: Number(result.gc) || 0, ss: Number(result.ss) || 0, bp: Number(result.bp) || 0 };
-    if (coins.gc + coins.ss + coins.bp <= 0) return null;
-    return coins;
+    let total = 0;
+    const coins = {};
+    primary.forEach((d, i) => {
+      const n = Number(result[`p${i}`]) || 0;
+      coins[d.coinValue] = n;
+      total += n;
+    });
+    const secondaryCoins = {};
+    secondary.forEach((s, i) => {
+      const n = Number(result[`s${i}`]) || 0;
+      secondaryCoins[s.id] = n;
+      total += n;
+    });
+    if (total <= 0) return null;
+    return { coins, secondaryCoins };
   }
 
   async _pickActorDialog(actors, titleKey) {
@@ -838,7 +949,14 @@ export class PartySheet extends BaseWFRP4eActorSheet {
       // in place; no transfer engine involvement since it never leaves the party actor.
       // isQuestDrop here implies GM (the top-of-function gate above already bailed non-GM
       // quest drops), so no further isGM check is needed on this branch.
-      if (isQuestDrop) {
+      //
+      // v0.3.0 — but ONLY when the item isn't a quest item yet. Dropping a quest item back
+      // inside the quest box is a REORDER, not a re-flag: the old unconditional branch set an
+      // already-true flag and returned, so the sort engine was never reached and quest rows
+      // could not be dragged into order. (It appeared to "sometimes work" only when the drop
+      // landed just outside the quest container, which then sorted the item against a normal
+      // category row — hence the erratic placement.) Fall through to the sort path instead.
+      if (isQuestDrop && item.getFlag(MODULE_ID, "questItem") !== true) {
         await item.setFlag(MODULE_ID, "questItem", true);
         return;
       }
@@ -959,13 +1077,15 @@ export class PartySheet extends BaseWFRP4eActorSheet {
     if (!game.user.isGM) return ui.notifications.warn(game.i18n.localize("WFRP4EPARTY.GMOnly"));
     const result = await transfer.consolidateCoins(this.document);
     if (!result.ok) {
-      ui.notifications.error(game.i18n.localize("WFRP4EPARTY.TransferFailed"));
+      if (result.reason === "invalid-denomination-chain") {
+        ui.notifications.warn(game.i18n.localize("WFRP4EPARTY.ConsolidateDisabledInvalidChain"));
+      } else {
+        ui.notifications.error(game.i18n.localize("WFRP4EPARTY.TransferFailed"));
+      }
       return;
     }
-    const gc = result.breakdown[COIN_VALUES.gc] ?? 0;
-    const ss = result.breakdown[COIN_VALUES.ss] ?? 0;
-    const bp = result.breakdown[COIN_VALUES.bp] ?? 0;
-    ui.notifications.info(game.i18n.format("WFRP4EPARTY.ConsolidateResult", { gc, ss, bp }));
+    const coinsStr = formatCoinLabel(result.breakdown);
+    ui.notifications.info(game.i18n.format("WFRP4EPARTY.ConsolidateResult", { coins: coinsStr }));
   }
 
   static async _onDepositCoins(ev, target) {
@@ -979,10 +1099,10 @@ export class PartySheet extends BaseWFRP4eActorSheet {
     }
     if (!game.user.isGM && !sourceActor.isOwner) return;
 
-    const coins = await this._promptCoinAmount("WFRP4EPARTY.DepositCoinsTitle");
-    if (!coins) return;
+    const picked = await this._promptCoinAmount("WFRP4EPARTY.DepositCoinsTitle");
+    if (!picked) return;
 
-    const result = await transfer.depositCoins(sourceActor, this.document, coins);
+    const result = await transfer.depositCoins(sourceActor, this.document, picked.coins, picked.secondaryCoins);
     if (!result.ok && result.reason !== "not-owner") {
       ui.notifications.error(game.i18n.localize("WFRP4EPARTY.TransferFailed"));
     }
@@ -993,10 +1113,10 @@ export class PartySheet extends BaseWFRP4eActorSheet {
     if (!targetActor) return;
     if (!game.user.isGM && !targetActor.isOwner) return;
 
-    const coins = await this._promptCoinAmount("WFRP4EPARTY.WithdrawCoinsTitle");
-    if (!coins) return;
+    const picked = await this._promptCoinAmount("WFRP4EPARTY.WithdrawCoinsTitle");
+    if (!picked) return;
 
-    const result = await transfer.withdrawCoins(this.document, targetActor, coins);
+    const result = await transfer.withdrawCoins(this.document, targetActor, picked.coins, picked.secondaryCoins);
     if (!result.ok && result.reason !== "not-owner") {
       ui.notifications.error(game.i18n.localize("WFRP4EPARTY.TransferFailed"));
     }
@@ -1058,6 +1178,21 @@ export class PartySheet extends BaseWFRP4eActorSheet {
     const id = target.closest("[data-id]")?.dataset.id;
     if (!id) return;
     await this.document.update(this.document.system.setMemberRevealStats(id, target.checked));
+  }
+
+  // v0.4.0 — fold a member card down to portrait+name so a large party stays scannable.
+  // Client-scope like the sort toggle below, so every viewer collapses independently and no
+  // document write (or ownership) is involved. Membership is untouched: group rolls and the
+  // summary aggregates read `fullCards`, which is built before any display filtering.
+  static async _onToggleMemberCollapse(ev, target) {
+    const id = target.closest("[data-id]")?.dataset.id;
+    if (!id) return;
+    const key = `${this.document.id}:${id}`;
+    const map = { ...game.settings.get(MODULE_ID, "collapsedMembers") };
+    if (map[key]) delete map[key];
+    else map[key] = true;
+    await game.settings.set(MODULE_ID, "collapsedMembers", map);
+    this.render();
   }
 
   // Phase 8 (004) — client-scope, available to every viewer (not GM-only, task 4.4).
@@ -2664,6 +2799,27 @@ export class PartySheet extends BaseWFRP4eActorSheet {
         callback: li => this.document.items.get(li.closest("[data-id]")?.dataset.id)?.unsetFlag(MODULE_ID, "questItem")
       }
     ], { eventName: "click", jQuery: false, fixed: true });
+
+    // v0.3.0 — left-click a pool row opens that item's sheet, so the most common action costs
+    // one click instead of kebab -> Edit. Bound once against the stable outer container, same
+    // rationale as the ContextMenu above.
+    //
+    // Deliberately keyed on `[data-uuid]`, which the templates emit only for a GM. That single
+    // gate already governs which rows are draggable and which the system's right-click menu
+    // acts on, so all three affordances stay in lockstep instead of drifting apart.
+    //
+    // Right-click is NOT touched: warhammer-lib binds the system's own menu (Edit / Remove /
+    // Post to Chat / Duplicate / Split) to `.list-row:not(.nocontext)` with no eventName, i.e.
+    // contextmenu. Rebinding it here would silently delete those entries.
+    this.element.addEventListener("click", async (ev) => {
+      const row = ev.target.closest(".party-inventory-list .list-row[data-uuid]");
+      if (!row) return;
+      // Never swallow a click aimed at a control inside the row — the kebab opens the menu and
+      // the quantity field must stay focusable/editable.
+      if (ev.target.closest(".list-controls, input, select, button")) return;
+      const item = await fromUuid(row.dataset.uuid);
+      item?.sheet.render(true);
+    });
   }
 
   async _onRender(context, options) {
