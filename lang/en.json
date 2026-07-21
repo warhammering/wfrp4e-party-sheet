@@ -328,6 +328,12 @@
   "WFRP4EPARTY.MemberCategoryHenchman": "Henchman",
   "WFRP4EPARTY.MemberCategoryNone": "—",
   "WFRP4EPARTY.MemberCategoryTooltip": "Tag this member as a Companion or Henchman — moves them out of the PC/NPC list into their own section",
+  "WFRP4EPARTY.MemberGroupPc": "Player Characters",
+  "WFRP4EPARTY.MemberGroupNpc": "NPCs",
+  "WFRP4EPARTY.MemberGroupCompanion": "Companions",
+  "WFRP4EPARTY.MemberGroupHenchman": "Henchmen",
+  "WFRP4EPARTY.MemberGroupDropHint": "Drag a member here",
+  "WFRP4EPARTY.MemberGroupTypeMismatch": "{name} cannot be moved to {group} — that section is set by the actor's own type. Use Companions or Henchmen instead.",
   "WFRP4EPARTY.InventorySortAlphaTooltip": "Sort the pool alphabetically (personal preference — never changes the GM's manual order for other viewers)",
   "WFRP4EPARTY.JourneyArrivalNoStatus": "no status",
   "WFRP4EPARTY.PostLogSummaryPublicOnly": "Public entries only"

@@ -116,6 +116,26 @@
   justify-content: space-between;
 }
 
+/* v1.1.0 — GM roster reorder. DragDrop.bind() sets draggable="true" only when _canDragStart
+   passes, so this grab affordance appears for the GM and never for a player. The card's own
+   controls (portrait, chevron, remove-X, selects) keep the pointer cursor their own rules give
+   them, so the grab hint reads as "drag the card body". */
+.party-sheet .member-card[draggable="true"] {
+  cursor: grab;
+}
+
+.party-sheet .member-card[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+/* The placeholder that keeps an empty NPC/Companions/Henchmen grid droppable for the GM. */
+.party-sheet .member-drop-hint {
+  border-style: dashed;
+  opacity: 0.5;
+  justify-content: center;
+  font-style: italic;
+}
+
 .party-sheet .member-portrait {
   width: 8rem;
   height: 8rem;

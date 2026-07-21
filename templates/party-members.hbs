@@ -17,7 +17,9 @@
   </div>
   {{/if}}
 
-  <div class="card-grid">
+  {{! v1.1.0 — `data-member-group` marks a grid as a GM drag-reorder drop target and names which
+      group a card dropped into it joins (see MEMBER_GROUPS in party-sheet.js). }}
+  <div class="card-grid" data-member-group="pc">
     {{#each memberCards as |card|}}
       {{#if card.vacant}}
         <div class="member-card vacant" data-id="{{card.id}}">
@@ -171,10 +173,19 @@
     {{/unless}}
   </div>
 
-  {{#if npcCards.length}}
+  {{! v1.1.0 — GM-visible when empty for the same reason as the two tag sections below: an NPC that
+      was tagged as a Companion needs somewhere to be dragged back TO. Gated on the party actually
+      HAVING an NPC (showNpcGroup) — a party of characters gets no empty NPC box, since nothing it
+      contains could ever be dropped there. }}
+  {{#if showNpcGroup}}
   <div class="party-npc-subsection">
     <div class="group-rolls-title label">{{localize "WFRP4EPARTY.NpcMembersHeading"}}</div>
-    <div class="card-grid">
+    <div class="card-grid" data-member-group="npc">
+      {{#unless npcCards.length}}
+        <div class="member-card empty member-drop-hint">
+          <div class="label">{{localize "WFRP4EPARTY.MemberGroupDropHint"}}</div>
+        </div>
+      {{/unless}}
       {{#each npcCards as |card|}}
         {{#if card.npcRedacted}}
           <div class="member-card npc-redacted" data-id="{{card.id}}">
@@ -282,10 +293,19 @@
   </div>
   {{/if}}
 
-  {{#if companionCards.length}}
+  {{! v1.1.0 — the two tag sections stay visible (empty) for a GM, mirroring the Phase 8 (002)
+      quest-box rule: a group a member can be dragged INTO must exist before it has anything in it,
+      or the first Companion could never be made by dragging. Players still only see a tag section
+      once it has members. }}
+  {{#if (or companionCards.length showTagGroupTargets)}}
   <div class="party-npc-subsection">
     <div class="group-rolls-title label">{{localize "WFRP4EPARTY.CompanionsHeading"}}</div>
-    <div class="card-grid">
+    <div class="card-grid" data-member-group="companion">
+      {{#unless companionCards.length}}
+        <div class="member-card empty member-drop-hint">
+          <div class="label">{{localize "WFRP4EPARTY.MemberGroupDropHint"}}</div>
+        </div>
+      {{/unless}}
       {{#each companionCards as |card|}}
         {{#if card.npcRedacted}}
           <div class="member-card npc-redacted" data-id="{{card.id}}">
@@ -414,10 +434,15 @@
   </div>
   {{/if}}
 
-  {{#if henchmenCards.length}}
+  {{#if (or henchmenCards.length showTagGroupTargets)}}
   <div class="party-npc-subsection">
     <div class="group-rolls-title label">{{localize "WFRP4EPARTY.HenchmenHeading"}}</div>
-    <div class="card-grid">
+    <div class="card-grid" data-member-group="henchman">
+      {{#unless henchmenCards.length}}
+        <div class="member-card empty member-drop-hint">
+          <div class="label">{{localize "WFRP4EPARTY.MemberGroupDropHint"}}</div>
+        </div>
+      {{/unless}}
       {{#each henchmenCards as |card|}}
         {{#if card.npcRedacted}}
           <div class="member-card npc-redacted" data-id="{{card.id}}">

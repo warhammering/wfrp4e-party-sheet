@@ -5,6 +5,32 @@ All notable changes to this module are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] — 2026-07-21
+
+### Added
+
+- **Drag to reorder party members.** Members can now be dragged into whatever order you want,
+  the same way the inventory pool already worked. The order is stored on the party and is
+  **shared** — you arrange the roster once and every player sees it that way, so the marching
+  order on the sheet can match the marching order at the table.
+- **Drag to tag.** Dropping a member into the **Companions** or **Henchmen** section tags them
+  and moves them there; dragging them back out to their own section clears the tag. The
+  dropdown on each card still does the same job — this is just the quicker way. The two tag
+  sections now stay visible (with a "Drag a member here" placeholder) so the first Companion
+  can be made by dragging.
+
+### Notes
+
+- Ordering is **GM only**. Player cards aren't draggable at all, and each section sorts
+  independently — a Companion is ordered among the Companions, never against the PCs.
+- **PC and NPC are not interchangeable.** Those two sections follow the actor's own type, so
+  a player character can't be dropped into the NPC list or vice versa; you'll get a warning
+  instead. Companion and Henchman are tags, and anyone may wear one.
+- No migration required. The new order field defaults empty, so a party you never drag renders
+  in exactly the order it does today.
+- If the sheet looks broken after updating, the client is running cached code — reload with
+  **Ctrl+F5**.
+
 ## [1.0.0] — 2026-07-21
 
 First stable release.

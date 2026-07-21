@@ -65,6 +65,13 @@ export class PartyModel extends BaseActorModel
     // fall back to prototypeToken.texture.src || actor.img, i.e. today's behavior, so no
     // migration is needed. NOTHING here is ever written back to the Actor.
     schema.memberArt = new fields.ObjectField({ initial: {} });
+    // v1.1.0 — GM-authored display order, keyed actor id -> integer. Same parallel-field shape and
+    // reasoning as the three above (warhammer-lib's DocumentReferenceListModel owns `members` and
+    // its add() hardcodes a 3-field write shape). Deliberately on the party actor rather than a
+    // client setting: ordering the roster is a GM statement about the party, and every viewer must
+    // see the same order. Absent keys sort AFTER any keyed member in their original members.list
+    // position, so an untouched party renders exactly as it does today — no migration.
+    schema.memberSort = new fields.ObjectField({ initial: {} });
     // Phase 7 — GM-editable capacity headroom (R7.4) and any number of connected vehicles
     // (R7.2, revised 2026-07-19 — a party may carry more than one vehicle). `vehicles`
     // mirrors `members` exactly: EmbeddedDataField(DocumentReferenceListModel), the same
@@ -184,8 +191,19 @@ export class PartyModel extends BaseActorModel
     return foundry.utils.mergeObject(this.members.removeId(id), {
       [`system.memberCategory.-=${id}`]: null,
       [`system.memberRevealStats.-=${id}`]: null,
-      [`system.memberArt.-=${id}`]: null
+      [`system.memberArt.-=${id}`]: null,
+      [`system.memberSort.-=${id}`]: null
     });
+  }
+
+  // v1.1.0 — whole-group rewrite: the caller hands over the target group's ids in their new
+  // order and every one gets a fresh sequential sort value. Rewriting the whole group (rather
+  // than interpolating a single midpoint value) keeps the stored numbers dense and collision-free
+  // for the price of writing a handful of extra integers, and it is the only way an unkeyed
+  // member (a party from before this field existed) picks up a value at all. Members outside
+  // `orderedIds` are untouched — each group sorts independently.
+  setMemberOrder(orderedIds) {
+    return Object.fromEntries(orderedIds.map((id, index) => [`system.memberSort.${id}`, index]));
   }
 
   // v0.4.0 — party-sheet-only portrait override. Passing a falsy src DELETES the key (the `-=`

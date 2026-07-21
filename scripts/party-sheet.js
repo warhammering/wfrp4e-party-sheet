@@ -11,6 +11,27 @@ const PHYSICAL_CATEGORY_TYPES = ["weapon", "armour", "ammunition", "trapping", "
 // forwards verbatim into createEmbeddedDocuments (warhammer-lib.js:10845). The createItem hook
 // at the bottom of this file consumes it to turn the stock COPY into a MOVE.
 const POOL_MOVE_FLAG = "wfrp4ePartyPoolMove";
+// v1.1.0 — member-card roster reorder. The marker rides in the Actor drag payload's `options` bag
+// (same carrier as POOL_MOVE_FLAG above) so _onDropActor can tell a reorder apart from a genuine
+// "add this actor to the party" drop from the sidebar. Scoped by partyUuid: dragging a member from
+// one party sheet onto ANOTHER is not a reorder, it's an add — and still works as it always did.
+const MEMBER_MOVE_FLAG = "wfrp4ePartyMemberMove";
+// Every member card takes part in a group's ORDER; a vacancy card (a ref whose actor was deleted)
+// has no Actor to build drag data from, so it can be positioned against but never picked up.
+const MEMBER_CARD_SELECTOR = ".member-card[data-id]";
+const MEMBER_DRAG_SELECTOR = ".member-card[data-id]:not(.vacant)";
+// The four member groups, keyed by the `data-member-group` attribute on each card grid. `category`
+// is the memberCategory value a drop into that group writes (null = clear the tag); `actorType`
+// pins the two type-owned groups — a character can never become an NPC or vice versa, so a drop
+// crossing that line is refused rather than silently retagged. `labelKey` is spelled out per group
+// rather than derived from the key, so every localization string this file uses stays greppable as
+// a literal (tests/static-validation.mjs resolves them against lang/en.json).
+const MEMBER_GROUPS = {
+  pc: { category: null, actorType: "character", labelKey: "WFRP4EPARTY.MemberGroupPc" },
+  npc: { category: null, actorType: "npc", labelKey: "WFRP4EPARTY.MemberGroupNpc" },
+  companion: { category: "companion", actorType: null, labelKey: "WFRP4EPARTY.MemberGroupCompanion" },
+  henchman: { category: "henchman", actorType: null, labelKey: "WFRP4EPARTY.MemberGroupHenchman" },
+};
 const journeyStageLocks = new Set();
 // Phase 8 (003) — the two GM-assignable member tags; order drives both the sheet's
 // Companions-then-Henchmen section order and the GM tag-control's option order.
@@ -237,6 +258,15 @@ export class PartySheet extends BaseWFRP4eActorSheet {
       toggleMemberCollapse: PartySheet._onToggleMemberCollapse,
       toggleInventorySortAlpha: PartySheet._onToggleInventorySortAlpha,
     },
+    // v1.1.0 — the second entry makes member cards draggable for the GM roster reorder. The first
+    // is warhammer-lib's own inventory selector (warhammer-lib.js:7148), restated because
+    // ApplicationV2 REPLACES array options rather than merging them — omitting it would silently
+    // kill every item drag in the inventory tab. Member cards carry `data-id` (never `data-uuid`),
+    // so the two selectors cannot overlap.
+    dragDrop: [
+      { dragSelector: "[data-uuid]:not([data-nodrag])", dropSelector: null },
+      { dragSelector: ".member-card[data-id]", dropSelector: null },
+    ],
     position: {
       width: 800,
       height: 1000
@@ -353,10 +383,21 @@ export class PartySheet extends BaseWFRP4eActorSheet {
 
     // context.memberCards (PCs, incl. vacancy cards as today) / context.npcCards (own
     // subsection, party-members.hbs) — the PRD-ruled split (R7.6/R7.7).
-    context.memberCards = untagged.filter(c => c.vacant || !c.isNpc);
-    context.npcCards = untagged.filter(c => !c.vacant && c.isNpc);
-    context.companionCards = categorized.filter(c => c.category === "companion");
-    context.henchmenCards = categorized.filter(c => c.category === "henchman");
+    // v1.1.0 — each group is ordered independently by the GM's stored memberSort. Applied per
+    // group AFTER the split (not once over displayCards) because the sort values are only ever
+    // meaningful within a group: dragging a member into Companions renumbers the Companions, and
+    // must not disturb the PC list it left.
+    const ordered = cards => this._sortMemberCards(cards);
+    context.memberCards = ordered(untagged.filter(c => c.vacant || !c.isNpc));
+    context.npcCards = ordered(untagged.filter(c => !c.vacant && c.isNpc));
+    context.companionCards = ordered(categorized.filter(c => c.category === "companion"));
+    context.henchmenCards = ordered(categorized.filter(c => c.category === "henchman"));
+    // v1.1.0 — which empty groups still render as drop targets for the GM. The two TAG groups show
+    // whenever the party has anyone (any member may be tagged), but the NPC group is pointless
+    // unless an NPC actually exists to drag back into it — a party of characters would otherwise
+    // get a permanently empty NPC box that refuses every drop it is offered.
+    context.showNpcGroup = context.npcCards.length > 0 || (isGM && fullCards.some(c => c.isNpc));
+    context.showTagGroupTargets = isGM && fullCards.length > 0;
     context.memberCategoryOptions = [
       { key: "", label: game.i18n.localize("WFRP4EPARTY.MemberCategoryNone") },
       ...MEMBER_CATEGORY_GROUPS.map(g => ({ key: g.key, label: game.i18n.localize(g.labelKey) }))
@@ -522,6 +563,22 @@ export class PartySheet extends BaseWFRP4eActorSheet {
       return { name: actor.name, tier: game.wfrp4e.config.statusTiers[tierKey], penalty };
     }).filter(Boolean);
     return { penalties };
+  }
+
+  // v1.1.0 — stable ordering for one member group. A member with a stored `memberSort` value sorts
+  // by it; a member without one keeps its members.list position and sorts after every keyed member,
+  // so a party that has never been dragged renders in exactly the order it always did. Never
+  // mutates the input array (the caller's `displayCards` filters are live slices of it).
+  _sortMemberCards(cards) {
+    const stored = this.document.system.memberSort ?? {};
+    return [...cards].sort((a, b) => {
+      const aSort = stored[a.id];
+      const bSort = stored[b.id];
+      if (aSort === undefined && bSort === undefined) return 0;   // both unkeyed: Array#sort is stable, keep list order
+      if (aSort === undefined) return 1;
+      if (bSort === undefined) return -1;
+      return aSort - bSort;
+    });
   }
 
   _prepareMemberCard(actor) {
@@ -887,6 +944,15 @@ export class PartySheet extends BaseWFRP4eActorSheet {
     return refs.find(r => r.id === result.targetId)?.document ?? null;
   }
 
+  // v1.1.0 — member cards are draggable for the GM only. The permission is enforced here rather
+  // than in the template because DragDrop.bind() only wires the handler (and only sets the
+  // draggable attribute) when this returns true, so a player's cards are inert in the DOM instead
+  // of being drag-started and then rejected mid-gesture.
+  _canDragStart(selector) {
+    if (selector === MEMBER_DRAG_SELECTOR) return game.user.isGM;
+    return super._canDragStart(selector);
+  }
+
   // Phase 8 (004, revised 2026-07-20) — GM drag serves TWO jobs, and both must work:
   //   1. drop inside this sheet  -> reorder (inherited _onSortItem, via _onDropItem's same-actor
   //      branch below)
@@ -901,6 +967,12 @@ export class PartySheet extends BaseWFRP4eActorSheet {
   // removes the pool's source stack, turning the copy into a move. See that hook for the
   // failure handling — it rolls the copy back rather than risk a duplicate.
   async _onDragStart(ev) {
+    // v1.1.0 — roster reorder. Checked before the inventory branch because the two selectors are
+    // disjoint and a member card would otherwise fall through to the stock handler, which reads
+    // `data-uuid` (member cards only ever carry `data-id`) and so would set no payload at all.
+    const card = ev.target?.closest?.(MEMBER_DRAG_SELECTOR);
+    if (card) return this._onMemberDragStart(ev, card);
+
     const row = ev.target?.closest?.(".party-inventory-list .list-row");
     if (!row?.dataset?.uuid) return super._onDragStart(ev);   // member cards etc. keep stock behavior
     if (!game.user.isGM) { ev.preventDefault(); return; }     // template omits data-uuid for players; belt-and-braces
@@ -909,6 +981,65 @@ export class PartySheet extends BaseWFRP4eActorSheet {
     const dragData = item.toDragData();
     dragData.options = { [POOL_MOVE_FLAG]: { partyUuid: this.document.uuid, itemId: item.id } };
     ev.dataTransfer.setData("text/plain", JSON.stringify(dragData));
+  }
+
+  // v1.1.0 — ships a standard Actor payload (so an unrecognised drop target still behaves sanely)
+  // with the reorder marker riding in `options`, exactly as the item drag does with POOL_MOVE_FLAG.
+  // A vacancy card has no Actor to build drag data from, so it stays put.
+  async _onMemberDragStart(ev, card) {
+    if (!game.user.isGM) { ev.preventDefault(); return; }
+    const actor = game.actors.get(card.dataset.id);
+    if (!actor) { ev.preventDefault(); return; }
+    const dragData = actor.toDragData();
+    dragData.options = { [MEMBER_MOVE_FLAG]: { partyUuid: this.document.uuid, memberId: actor.id } };
+    ev.dataTransfer.setData("text/plain", JSON.stringify(dragData));
+  }
+
+  // v1.1.0 — the reorder itself. Order is read back out of the DOM rather than re-derived from
+  // context: the rendered card sequence IS what the GM is dragging against, so using it removes any
+  // chance of the write disagreeing with what they saw. Groups renumber independently — only the
+  // destination group's ids are rewritten, which is why the source group needs no write at all
+  // (removing a member from it leaves a gap in the sequence, and gaps sort identically).
+  async _onMemberSortDrop(move, ev) {
+    if (!game.user.isGM) return ui.notifications.warn(game.i18n.localize("WFRP4EPARTY.GMOnly"));
+
+    const container = ev.target?.closest?.("[data-member-group]");
+    const spec = MEMBER_GROUPS[container?.dataset.memberGroup];
+    if (!spec) return;   // dropped on a heading, the summary, or dead space — not a reorder target
+
+    const actor = game.actors.get(move.memberId);
+    if (!actor) return;
+    // The one hard boundary (user ruling): Companion/Henchman are GM-assignable TAGS and anyone may
+    // wear them, but PC and NPC are the actor's own type. A drop across that line is refused
+    // outright rather than quietly landing the member back where it started with no explanation.
+    if (spec.actorType && actor.type !== spec.actorType) {
+      return ui.notifications.warn(game.i18n.format("WFRP4EPARTY.MemberGroupTypeMismatch", {
+        name: actor.name,
+        group: game.i18n.localize(spec.labelKey)
+      }));
+    }
+
+    const orderedIds = [...container.querySelectorAll(MEMBER_CARD_SELECTOR)].map(el => el.dataset.id).filter(id => id !== move.memberId);
+    const targetCard = ev.target?.closest?.(MEMBER_CARD_SELECTOR);
+    // Dropping on the upper half of a card puts the member before it, the lower half after it —
+    // the grid is a single flex column (party.css .card-grid), so Y alone decides. A drop in the
+    // group's empty space (or on the member's own card) appends to the end.
+    let insertAt = orderedIds.length;
+    if (targetCard && container.contains(targetCard)) {
+      const index = orderedIds.indexOf(targetCard.dataset.id);
+      if (index >= 0) {
+        const box = targetCard.getBoundingClientRect();
+        insertAt = ev.clientY < box.top + box.height / 2 ? index : index + 1;
+      }
+    }
+    orderedIds.splice(insertAt, 0, move.memberId);
+
+    const currentCategory = this.document.system.memberCategory?.[move.memberId] ?? "";
+    const update = this.document.system.setMemberOrder(orderedIds);
+    if (currentCategory !== (spec.category ?? "")) {
+      Object.assign(update, this.document.system.setMemberCategory(move.memberId, spec.category));
+    }
+    await this.document.update(update);
   }
 
   // Cross-actor deposit route (R2) — the inherited default _onDropItem (warhammer-lib.js:10836 ->
@@ -1131,7 +1262,13 @@ export class PartySheet extends BaseWFRP4eActorSheet {
     }
   }
 
-  async _onDropActor(data) {
+  async _onDropActor(data, ev) {
+    // v1.1.0 — a member card dragged within its OWN party sheet is a roster reorder, not an add.
+    // The partyUuid check keeps a cross-sheet drag (party A's member onto party B) on the normal
+    // addMember path it has always taken.
+    const move = data.options?.[MEMBER_MOVE_FLAG];
+    if (move?.partyUuid === this.document.uuid) return this._onMemberSortDrop(move, ev);
+
     let actor = await fromUuid(data.uuid);
     if (!actor) {
       ui.notifications.info(game.i18n.localize("WFRP4EPARTY.DropRejected"));
