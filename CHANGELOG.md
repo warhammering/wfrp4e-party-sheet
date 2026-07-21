@@ -5,6 +5,46 @@ All notable changes to this module are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] — 2026-07-21
+
+First stable release.
+
+### Added
+
+- **Collapsible member cards.** A chevron in the portrait column folds a member down to a small
+  portrait and their name. Built for big parties — once the companions and henchmen pile up you
+  rarely need every stat block on screen at once. Collapsing affects **only your own view**, is
+  remembered between sessions, and changes nothing else: the member stays in the party, in group
+  rolls, and in every total. Players can collapse their own view too.
+- **Change Token Art.** Right-click a member's portrait (GM only) to pick a different image for
+  that member **on the party sheet alone**. Tokenizer-style token art with a baked-in ring reads
+  badly inside the sheet's round frame; this lets you point the card at a cleaner portrait. The
+  actor's own artwork and canvas token are never touched, and **Reset to Original** puts the card
+  back on the actor's own art.
+- **Copy URL** on the same right-click menu, for grabbing an image path.
+- **Image Context integration.** If you own theripper93's *Image Context*, its **Show** and **Send
+  to Chat** appear in that same menu, running its code. Without that module the two entries simply
+  aren't offered — nothing is reimplemented here.
+- **Quest items now show their value**, with a **Quest Items Total** beneath the section, matching
+  the main list. Kept separate from the pool's Grand Total. Players can see the values; they still
+  cannot sell quest items or drop items into the quest area.
+
+### Changed
+
+- The remove-member ✕ moved to the **top-right corner** of the member card, and the collapse
+  chevron sits beside the Companion / Henchman dropdown.
+- **Simple mode is quieter.** The Journey notice is now one line, and is **shown only to the GM** —
+  players no longer see their GM told to buy a module. The weather field reads just **Weather**, and
+  the Navigation/Lore stage-reduction hint (an *Enemy in Shadows* rule) no longer appears when that
+  module is inactive.
+
+### Notes
+
+- No migration required. The new per-member art override defaults to empty, so every card keeps
+  using the actor's token art exactly as before.
+- If the sheet looks broken after updating, the client is running cached code — reload with
+  **Ctrl+F5**.
+
 ## [0.3.0] — 2026-07-21
 
 ### Added

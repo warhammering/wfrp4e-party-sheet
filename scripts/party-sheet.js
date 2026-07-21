@@ -303,7 +303,16 @@ export class PartySheet extends BaseWFRP4eActorSheet {
       // GM hide a PC too; an explicit `true` reveals an NPC.
       const stored = this.document.system.memberRevealStats?.[ref.id];
       const revealStats = stored === undefined ? !isNpc : stored === true;
-      return { id: ref.id, vacant: false, isNpc, category, revealStats, ...this._prepareMemberCard(actor) };
+      const card = { id: ref.id, vacant: false, isNpc, category, revealStats, ...this._prepareMemberCard(actor) };
+      // v0.4.0 — party-sheet-only portrait override, applied LAST so it wins over the
+      // prototypeToken -> actor.img chain _prepareMemberCard resolved. `artOverridden` drives the
+      // "Reset to Original" menu entry's condition. The Actor is never written.
+      const art = this.document.system.memberArt?.[ref.id];
+      if (art) {
+        card.img = art;
+        card.artOverridden = true;
+      }
+      return card;
     });
 
     this._memberIds = new Set(refs.map(ref => ref.id));
@@ -1193,6 +1202,76 @@ export class PartySheet extends BaseWFRP4eActorSheet {
     else map[key] = true;
     await game.settings.set(MODULE_ID, "collapsedMembers", map);
     this.render();
+  }
+
+  // v0.4.0 — portrait override. Writes ONLY system.memberArt on the party actor; the member's
+  // own Actor (actor.img, prototypeToken.texture.src) is never touched, so the character sheet
+  // and the canvas token keep the art they already have.
+  async _onChangeMemberArt(el) {
+    if (!game.user.isGM) return ui.notifications.warn(game.i18n.localize("WFRP4EPARTY.GMOnly"));
+    const id = el.closest("[data-id]")?.dataset.id;
+    if (!id) return;
+    // `.implementation` (not the bare class) so an override — the world runs filepicker-plus —
+    // is respected instead of being bypassed.
+    const FP = foundry.applications.apps.FilePicker.implementation;
+    const picker = new FP({
+      type: "image",
+      current: el.getAttribute("src") || "",
+      callback: async path => {
+        if (!path) return;
+        await this.document.update(this.document.system.setMemberArt(id, path));
+        ui.notifications.info(game.i18n.localize("WFRP4EPARTY.MemberArtUpdated"));
+      }
+    });
+    return picker.browse();
+  }
+
+  async _onResetMemberArt(el) {
+    if (!game.user.isGM) return ui.notifications.warn(game.i18n.localize("WFRP4EPARTY.GMOnly"));
+    const id = el.closest("[data-id]")?.dataset.id;
+    if (!id) return;
+    // Falsy src => the `-=` delete payload, so the card falls back through prototypeToken -> img.
+    await this.document.update(this.document.system.setMemberArt(id, null));
+    ui.notifications.info(game.i18n.localize("WFRP4EPARTY.MemberArtReset"));
+  }
+
+  _onCopyPortraitUrl(el) {
+    if (!game.user.isGM) return;
+    const src = el.getAttribute("src");
+    if (!src) return;
+    game.clipboard.copyPlainText(src);
+    ui.notifications.info(game.i18n.format("WFRP4EPARTY.UrlCopied", { src }));
+  }
+
+  // theripper93's Image Context is a CLASSIC script, so `class ImageContext` creates a global
+  // LEXICAL binding — NOT a property of globalThis. `globalThis.ImageContext` is undefined while
+  // a bare `ImageContext` resolves, hence the `typeof` guard rather than a globalThis lookup.
+  // There is no published API or hook on that module; this reaches its statics directly, so it is
+  // deliberately defensive — if a future version renames them we return null and the two
+  // delegated entries simply stop being offered.
+  _imageContextApi() {
+    if (!game.modules.get("image-context")?.active) return null;
+    if (typeof ImageContext === "undefined") return null;
+    const api = ImageContext;
+    return (typeof api.show === "function" && typeof api.toChat === "function") ? api : null;
+  }
+
+  // Their handlers are written as DOM click listeners: they read `this.getAttribute("data-src")`
+  // and then call `this.parentElement.remove()` to dismiss their own menu. So we hand them a
+  // detached stand-in of that exact shape — the remove() lands on the throwaway wrapper.
+  _callImageContext(fnName, el) {
+    const api = this._imageContextApi();
+    const src = el.getAttribute("src");
+    if (!api || !src) return;
+    try {
+      const wrapper = document.createElement("div");
+      const proxy = document.createElement("div");
+      proxy.setAttribute("data-src", src);
+      wrapper.appendChild(proxy);
+      api[fnName].call(proxy);
+    } catch (err) {
+      console.warn(`${MODULE_ID} | Image Context integration failed for "${fnName}" — its internals may have changed. Falling back to no action.`, err);
+    }
   }
 
   // Phase 8 (004) — client-scope, available to every viewer (not GM-only, task 4.4).
@@ -2799,6 +2878,52 @@ export class PartySheet extends BaseWFRP4eActorSheet {
         callback: li => this.document.items.get(li.closest("[data-id]")?.dataset.id)?.unsetFlag(MODULE_ID, "questItem")
       }
     ], { eventName: "click", jQuery: false, fixed: true });
+
+    // v0.4.0 — GM-only right-click menu on a member portrait. Two natively-implemented entries
+    // (Change Token Art / Reset to Original) plus Copy URL, and — ONLY when theripper93's paid
+    // "Image Context" module is active — its own Show / Send to Chat, invoked through its code
+    // rather than reimplemented here, so that functionality stays behind its paywall.
+    //
+    // Constructed for a GM only. ContextMenu._onActivate stopImmediatePropagation()s as soon as
+    // its selector matches (context-menu.mjs:498) — BEFORE any condition is evaluated — so
+    // building it for a player would swallow their right-click and show an empty box, every entry
+    // here being isGM-gated. Not constructing it lets a player's right-click fall through
+    // untouched. That same stopImmediatePropagation is also what keeps Image Context's
+    // document-level listener (image-context/scripts/config.js) from opening a second, rival menu
+    // on top of ours — no suppression of our own is needed.
+    if (game.user.isGM) this._portraitContextMenu = new foundry.applications.ux.ContextMenu(this.element, ".member-portrait", [
+      {
+        name: "WFRP4EPARTY.ChangeMemberArt",
+        icon: '<i class="fas fa-image"></i>',
+        condition: () => game.user.isGM,
+        callback: el => this._onChangeMemberArt(el)
+      },
+      {
+        name: "WFRP4EPARTY.ResetMemberArt",
+        icon: '<i class="fas fa-rotate-left"></i>',
+        condition: el => game.user.isGM && !!this.document.system.memberArt?.[el.closest("[data-id]")?.dataset.id],
+        callback: el => this._onResetMemberArt(el)
+      },
+      {
+        name: "WFRP4EPARTY.ImageContextShow",
+        icon: '<i class="fas fa-eye"></i>',
+        condition: () => game.user.isGM && !!this._imageContextApi(),
+        callback: el => this._callImageContext("show", el)
+      },
+      {
+        name: "WFRP4EPARTY.ImageContextToChat",
+        icon: '<i class="fas fa-share"></i>',
+        condition: () => game.user.isGM && !!this._imageContextApi(),
+        callback: el => this._callImageContext("toChat", el)
+      },
+      {
+        name: "WFRP4EPARTY.CopyImageUrl",
+        icon: '<i class="fas fa-link"></i>',
+        condition: () => game.user.isGM,
+        callback: el => this._onCopyPortraitUrl(el)
+      }
+    ], { jQuery: false, fixed: true });
+
 
     // v0.3.0 — left-click a pool row opens that item's sheet, so the most common action costs
     // one click instead of kebab -> Edit. Bound once against the stable outer container, same

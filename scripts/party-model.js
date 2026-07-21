@@ -58,6 +58,13 @@ export class PartyModel extends BaseActorModel
     // shape and same reasoning as memberCategory above; keyed actor id -> true. Absent/false ==
     // redacted, so the default (and any un-migrated party) is the private state.
     schema.memberRevealStats = new fields.ObjectField({ initial: {} });
+    // v0.4.0 — per-member portrait override for THIS SHEET ONLY, keyed actor id -> file path.
+    // Same parallel-field shape as the two above. Deliberately on the party actor and not a
+    // client setting (unlike the collapse state): the GM is correcting how a token reads inside
+    // the sheet's round frame, and every viewer must see the same corrected picture. Absent ==
+    // fall back to prototypeToken.texture.src || actor.img, i.e. today's behavior, so no
+    // migration is needed. NOTHING here is ever written back to the Actor.
+    schema.memberArt = new fields.ObjectField({ initial: {} });
     // Phase 7 — GM-editable capacity headroom (R7.4) and any number of connected vehicles
     // (R7.2, revised 2026-07-19 — a party may carry more than one vehicle). `vehicles`
     // mirrors `members` exactly: EmbeddedDataField(DocumentReferenceListModel), the same
@@ -176,8 +183,19 @@ export class PartyModel extends BaseActorModel
     // `flags.<scope>.-=<key>` (wfrp4e.js:28306).
     return foundry.utils.mergeObject(this.members.removeId(id), {
       [`system.memberCategory.-=${id}`]: null,
-      [`system.memberRevealStats.-=${id}`]: null
+      [`system.memberRevealStats.-=${id}`]: null,
+      [`system.memberArt.-=${id}`]: null
     });
+  }
+
+  // v0.4.0 — party-sheet-only portrait override. Passing a falsy src DELETES the key (the `-=`
+  // token, for the deep-merge reason spelled out in removeMember above) — that is the "Reset to
+  // Original" path, and it must remove the entry rather than store "" so the card falls back
+  // through the normal prototypeToken -> actor.img chain.
+  setMemberArt(id, src) {
+    return src
+      ? { [`system.memberArt.${id}`]: src }
+      : { [`system.memberArt.-=${id}`]: null };
   }
 
   // Phase 8 (005) — stores an EXPLICIT boolean, not a presence-flag. `false` is a meaningful
