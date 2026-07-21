@@ -184,7 +184,11 @@ export class PartyModel extends BaseActorModel
     const liveVehicles = this.vehicles.list.filter(ref => ref.document && game.actors.get(ref.id));
     const vehicle = liveVehicles.reduce((sum, ref) => sum + Number(ref.document.system.status?.carries?.max ?? 0), 0);
     const bonus = this.capacityBonus ?? 0;
-    const current = this.parent.items.reduce((sum, i) => sum + Number(i.system.encumbrance?.total ?? 0), 0);
+    // Round to 2 dp — summing fractional encumbrances (coins carry a fractional weight) accrues
+    // float error, which otherwise renders as "18.180000000000003" in the header and leaks into
+    // the capacity-check shortfall messages. Encumbrance granularity is coarse, so 2 dp is ample.
+    const rawCurrent = this.parent.items.reduce((sum, i) => sum + Number(i.system.encumbrance?.total ?? 0), 0);
+    const current = Math.round(rawCurrent * 100) / 100;
     return { memberAllowance, vehicle, bonus, current, max: memberAllowance + vehicle + bonus };
   }
 
