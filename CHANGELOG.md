@@ -5,6 +5,31 @@ All notable changes to this module are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] — 2026-07-23
+
+### Added
+
+- **Request group rolls from players.** Group rolls (the `Group Rolls: …` buttons and the custom
+  skill/characteristic picker) now have an opt-in **"Request from players"** checkbox. Tick it and
+  each online player-character gets a private prompt to roll **their own** test — a public roll on
+  their own sheet, with your difficulty and modifier already baked in (no configuration window for
+  them). They can spend Fortune to reroll like any other roll, and the kept result is what lands in
+  the summary.
+
+### Notes
+
+- **Default off.** Leave the box unticked and group rolls behave exactly as before — everyone
+  rolled hidden, one GM-only summary.
+- **Only online player-characters are asked.** NPCs and any offline PCs still roll blind in the
+  background, so the summary is always the whole party.
+- **You stay in control.** An "Awaiting Rolls" window shows who has rolled, live; you can roll for
+  a stuck player yourself, or cancel to call the whole thing off with no summary posted. The
+  request cards are hidden from your own chat log — the Awaiting window is your view.
+- **The summary is still GM-only**, and now marks which rolls the players made themselves versus
+  the ones you rolled for them.
+- If the sheet looks broken after updating, the client is running cached code — reload with
+  **Ctrl+F5**.
+
 ## [1.1.0] — 2026-07-21
 
 ### Added

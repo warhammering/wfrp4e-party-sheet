@@ -65,6 +65,18 @@ assert.match(transferSource, /item\.type === "cargo"\s*\? amount/);
 assert.match(transferSource, /registerMutationHandler\("move-item"/);
 pass("audited defect patterns are eliminated");
 
+// Phase 8 (party-sheet-request-from-players, D1) — structural presence assertions for the
+// request-from-players surface, plus an explicit lang-key presence check (the generic
+// "usedLocalizationKeys" loop above only proves used keys RESOLVE; it can't catch a key that was
+// meant to exist but was never referenced from source, e.g. a typo'd feature key nobody uses).
+assert.match(partySheetSource, /requestFromPlayers/);
+assert.match(partySheetSource, /renderChatMessageHTML/);
+assert.match(partySheetSource, /_awaitingGroupRoll/);
+for (const key of ["WFRP4EPARTY.RequestFromPlayers", "WFRP4EPARTY.RequestCardButton", "WFRP4EPARTY.AwaitingRolls", "WFRP4EPARTY.RollForThem"]) {
+  assert.ok(Object.hasOwn(english, key), `missing lang key: ${key}`);
+}
+pass("request-from-players surface + lang keys present");
+
 // Foundry v13 shape source: Users.activeGM in the extracted core API and the live module's
 // Hooks/game globals. Only the queue's ordering contract is mocked here; live Actor writes stay
 // covered by phase6-smoke.js and phase7-smoke.js.

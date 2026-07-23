@@ -54,6 +54,14 @@ function userOwnsActor(user, actor) {
   return user?.isGM || actor.testUserPermission(user, CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER);
 }
 
+// Phase 8 (party-sheet-request-from-players) — the "requested" bucket predicate: a currently
+// online, non-GM user who owns this actor. Excludes the GM explicitly — game.user.isGM would
+// otherwise make userOwnsActor() true for every actor, which is right for permission GATES but
+// wrong here (a GM "owning" every actor doesn't mean a PLAYER is present to click the card).
+function activeOwningUsers(actor) {
+  return game.users.filter(u => u.active && !u.isGM && actor.testUserPermission(u, CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER));
+}
+
 // Phase 8 (001) — shared brass<->coins math, extracted from the money summary so the new
 // per-row/grand-total value math (task 2.2) doesn't duplicate the floor/modulo logic.
 // Phase 9 (Item Piles currencies) — generalized to the live configured primary denominations
@@ -210,6 +218,137 @@ async function setEndeavourSkillMutation(payload, { requester }) {
   record.skillChoice = skillChoice;
   await partyActor.update({ "system.journey.stages": stages });
   return { ok: true };
+}
+
+// Phase 8 (party-sheet-request-from-players) — mirrors wfrp4e-economy's
+// haggle-roll-request.js pattern (see that file's header comment for the full cross-client
+// relay writeup) rather than importing it: a whispered chat card -> renderChatMessageHTML click
+// handler -> the CLICKING client's own actor.setupSkill/setupCharacteristic(...).roll() -> the
+// resulting `type:"test"` ChatMessage document syncs to every client via createChatMessage.
+//
+// B1 spike (Task 1.1): a Fortune reroll clears context.messageId to "" (wfrp4e.js:7595-7607)
+// before calling roll() again; renderRollCard() (wfrp4e.js:8391-8402) then takes the CREATE
+// branch (`newMessage || !this.message` — game.messages.get("") is undefined) and posts a
+// brand-new type:"test" ChatMessage, never an update. The capture listener below only needs to
+// bind createChatMessage; "latest wins" (Q2) is achieved by RE-ARMING the one-shot listener
+// after each capture (_runAwaitingRollsDialog) so a reroll's fresh createChatMessage OVERWRITES
+// the stored result, until the GM posts the summary or the dialog aborts.
+const GROUP_ROLL_REQUEST_CLASS = "wfrp4eparty-group-roll-request";
+
+/**
+ * Posts a whispered, clickable chat card requesting the actor's own skill/characteristic test,
+ * with the GM's difficulty/modifier baked into data attributes on the button (mirrors
+ * postHaggleRollButton, haggle-roll-request.js:169-186).
+ * @param {Actor} actor
+ * @param {{skillName?:string, characteristic?:string, difficulty:string, modifier:number, label:string, whisperUserIds:string[]}} spec
+ * @returns {Promise<{messageId:string}>}
+ */
+async function postGroupRollRequestCard(actor, { skillName, characteristic, difficulty, modifier, label, whisperUserIds }) {
+  const content = `<div class="${GROUP_ROLL_REQUEST_CLASS}" data-actor-id="${actor.id}">
+      <p>${game.i18n.format("WFRP4EPARTY.RequestCardFlavor", { test: label })}</p>
+      <button type="button" class="wfrp4eparty-group-roll-request-btn"
+        data-actor-id="${actor.id}"
+        data-skill="${skillName ?? ""}"
+        data-characteristic="${characteristic ?? ""}"
+        data-difficulty="${difficulty}"
+        data-modifier="${modifier}"
+        data-label="${label}">
+        ${game.i18n.format("WFRP4EPARTY.RequestCardButton", { test: label })}
+      </button>
+    </div>`;
+  const message = await ChatMessage.create({
+    content,
+    speaker: ChatMessage.getSpeaker({ actor }),
+    whisper: whisperUserIds,
+  });
+  return { messageId: message.id };
+}
+
+/**
+ * Waits for the actor's next wfrp4e "test" ChatMessage to appear on any client (the cross-client
+ * relay described above — mirrors awaitHaggleTestMessage, haggle-roll-request.js:196-216), or
+ * resolves early (with null) if the caller's AbortSignal fires (GM "roll for them" / cancel).
+ * @param {string} actorId @param {AbortSignal} [signal]
+ * @returns {Promise<{sl:number, roll:number, target:number, success:boolean}|null>}
+ */
+function awaitGroupRollTestMessage(actorId, signal) {
+  return new Promise(resolve => {
+    let settled = false;
+    const hookId = Hooks.on("createChatMessage", message => {
+      if (settled) return;
+      if (message.type !== "test") return;
+      if (message.speaker?.actor !== actorId) return;
+      const result = message.system?.testData?.result;
+      if (!result || !Number.isInteger(result.roll)) return; // not a skill/characteristic-shaped test — keep waiting.
+      settled = true;
+      Hooks.off("createChatMessage", hookId);
+      resolve({ sl: result.SL, roll: result.roll, target: Number(result.target), success: result.outcome === "success" });
+    });
+    signal?.addEventListener("abort", () => {
+      if (settled) return;
+      settled = true;
+      Hooks.off("createChatMessage", hookId);
+      resolve(null);
+    });
+  });
+}
+
+/**
+ * Registers the group-roll-request button click handler + GM-log suppression (Q1) via
+ * renderChatMessageHTML, once from the module's init hook (mirrors registerHaggleRollHooks,
+ * haggle-roll-request.js:255-299). Player roll is deliberately skipDialog:true + baked
+ * difficulty/modifier + rollMode:"publicroll" — no player-side reconfiguration, public dice.
+ */
+function registerGroupRollRequestHooks() {
+  Hooks.on("renderChatMessageHTML", (message, html) => {
+    const card = html.querySelector?.(`.${GROUP_ROLL_REQUEST_CLASS}`);
+    if (!card) return;
+
+    // Q1 — the GM's own chat log never shows request cards; the Awaiting Rolls dialog (Phase 2)
+    // is the GM's interface for these instead.
+    if (game.user.isGM) {
+      html.style.display = "none";
+      return;
+    }
+
+    const button = html.querySelector?.(".wfrp4eparty-group-roll-request-btn");
+    if (!button) return;
+    button.addEventListener("click", async event => {
+      event.preventDefault();
+      const actorId = event.currentTarget.dataset.actorId;
+      const actor = game.actors?.get?.(actorId);
+      if (!actor) return;
+      if (!userOwnsActor(game.user, actor)) {
+        ui.notifications.warn(game.i18n.localize("WFRP4EPARTY.OwnerOnly"));
+        return;
+      }
+
+      const { skill: skillName, characteristic, difficulty, modifier, label } = event.currentTarget.dataset;
+      const setupData = {
+        skipDialog: true,
+        skipTargets: true,
+        fields: { rollMode: "publicroll", difficulty, modifier: Number(modifier) || 0 },
+        title: label,
+      };
+
+      event.currentTarget.disabled = true;
+      try {
+        let test;
+        if (skillName) {
+          const skills = actor.itemTags?.["skill"] ?? actor.items.filter(i => i.type === "skill");
+          const skill = skills.find(i => i.name === skillName);
+          test = skill ? await actor.setupSkill(skill, setupData) : await actor.setupCharacteristic(characteristic, setupData);
+        } else {
+          test = await actor.setupCharacteristic(characteristic, setupData);
+        }
+        if (!test) { event.currentTarget.disabled = false; return; } // dialog cancelled — allow another click (should not happen with skipDialog:true, defensive).
+        await test.roll();
+      } catch (error) {
+        event.currentTarget.disabled = false;
+        throw error;
+      }
+    });
+  });
 }
 
 export class PartySheet extends BaseWFRP4eActorSheet {
@@ -1576,6 +1715,10 @@ export class PartySheet extends BaseWFRP4eActorSheet {
         <div class="form-group">
           <label>${game.i18n.localize("WFRP4EPARTY.Modifier")}</label>
           <input type="number" name="modifier" value="0" step="10"/>
+        </div>
+        <div class="form-group">
+          <label>${game.i18n.localize("WFRP4EPARTY.RequestFromPlayers")}</label>
+          <input type="checkbox" name="requestFromPlayers"/>
         </div>`;
   }
 
@@ -1626,6 +1769,7 @@ export class PartySheet extends BaseWFRP4eActorSheet {
     if (!config || config === "cancel") return;
     const difficulty = config.difficulty;
     const modifier = Number(config.modifier) || 0;
+    const requestFromPlayers = config.requestFromPlayers === "on" || config.requestFromPlayers === true;
 
     // Fixed characteristic passed through unchanged (all TEST_TARGET_SKILLS
     // entries are basic, so the fallback is always legal — same as Phase 2).
@@ -1634,7 +1778,8 @@ export class PartySheet extends BaseWFRP4eActorSheet {
       skillName: label,
       characteristic: spec.characteristic,
       difficulty,
-      modifier
+      modifier,
+      requestFromPlayers
     });
   }
 
@@ -1688,17 +1833,18 @@ export class PartySheet extends BaseWFRP4eActorSheet {
     const difficulty = config.difficulty;
     const modifier = Number(config.modifier) || 0;
     const allowAdvancedFallback = config.allowAdvancedFallback === "on" || config.allowAdvancedFallback === true;
+    const requestFromPlayers = config.requestFromPlayers === "on" || config.requestFromPlayers === true;
 
     if (config.mode === "characteristic") {
       const charKey = config.characteristic;
       const label = game.i18n.localize(game.wfrp4e.config.characteristics[charKey]);
-      await this._runGroupTest({ label, characteristic: charKey, difficulty, modifier });
+      await this._runGroupTest({ label, characteristic: charKey, difficulty, modifier, requestFromPlayers });
       return;
     }
 
     const skillName = config.skillName?.trim();
     if (!skillName) return;
-    await this._runGroupTest({ label: skillName, skillName, difficulty, modifier, allowAdvancedFallback });
+    await this._runGroupTest({ label: skillName, skillName, difficulty, modifier, allowAdvancedFallback, requestFromPlayers });
   }
 
   // R5.2 — Make Camp (EiS Travel Endeavour), RAW pooled variant (Revision R1,
@@ -2878,7 +3024,14 @@ export class PartySheet extends BaseWFRP4eActorSheet {
   // Shared roll runner — the ONE roll path for quick buttons (_rollGroupTest)
   // and the picker (_onOpenGroupTestPicker). Resolves the whole-party member
   // list, delegates the roll loop to _rollHidden, then posts the GM whisper.
-  async _runGroupTest({ label, skillName, characteristic, difficulty, modifier, allowAdvancedFallback = false }) {
+  //
+  // Phase 8 (party-sheet-request-from-players) — when requestFromPlayers is set, splits the
+  // party: online-owned PCs ("requested") roll their own PUBLIC test via the Awaiting Rolls
+  // dialog (Task 2.3); everyone else ("blind") rolls exactly as before via _rollHidden,
+  // unchanged. B2 — if nobody qualifies as requested, this silently falls through to the
+  // original all-blind path (requested stays empty). B3 — a double-fire guard blocks a second
+  // requested group test while this sheet's Awaiting Rolls dialog is already open.
+  async _runGroupTest({ label, skillName, characteristic, difficulty, modifier, allowAdvancedFallback = false, requestFromPlayers = false }) {
     const members = [];
     for (const ref of this.document.system.members.list) {
       const member = ref.document;
@@ -2888,10 +3041,137 @@ export class PartySheet extends BaseWFRP4eActorSheet {
       members.push(member);
     }
 
-    const results = await this._rollHidden(members, { label, skillName, characteristic, difficulty, modifier, allowAdvancedFallback });
-    if (!results || !results.length) return;
+    if (requestFromPlayers && this._awaitingGroupRoll) {
+      ui.notifications.warn(game.i18n.localize("WFRP4EPARTY.GroupRollAlreadyAwaiting"));
+      return;
+    }
 
-    // GM-whispered summary, GM Toolkit style (group-test.mjs:94-133)
+    const requested = requestFromPlayers
+      ? members.filter(m => m.type === "character" && activeOwningUsers(m).length)
+      : [];
+    const blind = requested.length ? members.filter(m => !requested.includes(m)) : members;
+
+    const blindResults = await this._rollHidden(blind, { label, skillName, characteristic, difficulty, modifier, allowAdvancedFallback });
+    if (!blindResults) return; // unknown-skill abort (CCR-6) — unchanged from the pre-Phase-8 behavior.
+
+    if (!requested.length) {
+      await this._postGroupRollSummary(blindResults, { label, difficulty, modifier });
+      return;
+    }
+
+    this._awaitingGroupRoll = true;
+    let requestedResults;
+    try {
+      requestedResults = await this._runAwaitingRollsDialog(requested, { label, skillName, characteristic, difficulty, modifier });
+    } finally {
+      this._awaitingGroupRoll = false;
+    }
+    if (requestedResults === null) return; // Q3 — GM cancelled the Awaiting Rolls dialog: abort, no summary.
+
+    await this._postGroupRollSummary([...blindResults, ...requestedResults], { label, difficulty, modifier });
+  }
+
+  // Task 2.3 — the GM-only "Awaiting Rolls" dialog: posts a request card to each requested
+  // member, then keeps the dialog open with LIVE per-row status (A1) as createChatMessage
+  // capture events land, until the GM either ticks members + "Roll for Them" (public, same
+  // shape as a player click — economy-view-form.js:3141-3189's rollForThem pattern) or clicks
+  // Post Summary (only enabled once every row is resolved — Q2, a beat for Fortune reroll) or
+  // Cancel (Q3 — aborts the WHOLE group test, including the already-rolled blind bucket's
+  // summary, by returning null to the caller).
+  // @returns {Promise<Array|null>} captured requested results (with a self/gm `source` marker
+  //   each), or null if the GM cancelled / closed the dialog without posting.
+  async _runAwaitingRollsDialog(members, { label, skillName, characteristic, difficulty, modifier }) {
+    const controller = new AbortController();
+    const rowState = new Map(members.map(m => [m.id, "pending"])); // pending|gmRolled|rolled
+    const captured = new Map(); // memberId -> result
+
+    const statusIcon = state => state === "pending" ? "⏳" : (state === "gmRolled" ? "🎲" : "✓");
+    const statusLabel = state => game.i18n.localize(
+      state === "pending" ? "WFRP4EPARTY.AwaitingRollsPending"
+        : state === "gmRolled" ? "WFRP4EPARTY.AwaitingRollsGmRolled"
+        : "WFRP4EPARTY.AwaitingRollsRolled"
+    );
+    const rowsHtml = () => members.map(m => {
+      const state = rowState.get(m.id);
+      return `<div class="wfrp4eparty-awaiting-row" data-member-id="${m.id}">
+          <label><input type="checkbox" class="wfrp4eparty-awaiting-check" value="${m.id}" ${state === "pending" ? "" : "disabled"}/> ${m.name}</label>
+          <span class="wfrp4eparty-awaiting-status">${statusIcon(state)} ${statusLabel(state)}</span>
+        </div>`;
+    }).join("");
+
+    let dialogInstance = null;
+    const refresh = () => {
+      const root = dialogInstance?.element;
+      if (!root) return;
+      const rows = root.querySelector(".wfrp4eparty-awaiting-rows");
+      if (rows) rows.innerHTML = rowsHtml();
+      const postBtn = root.querySelector('[data-action="postSummary"]');
+      if (postBtn) postBtn.disabled = captured.size < members.length;
+    };
+
+    const rollMemberForThem = async memberId => {
+      if (captured.has(memberId)) return;
+      const member = members.find(m => m.id === memberId);
+      if (!member) return;
+      rowState.set(memberId, "gmRolled");
+      refresh();
+      const setupData = { skipDialog: true, skipTargets: true, fields: { rollMode: "publicroll", difficulty, modifier }, title: label };
+      const skills = skillName ? (member.itemTags?.["skill"] ?? member.items.filter(i => i.type === "skill")) : null;
+      const skill = skillName ? skills.find(i => i.name === skillName) : null;
+      const test = skill ? await member.setupSkill(skill, setupData) : await member.setupCharacteristic(characteristic, setupData);
+      if (test) await test.roll(); // resolves through the same capture listener below (source stays "gm").
+    };
+
+    // Post request cards, then race each member's capture against the shared AbortSignal — a
+    // resolved member flips its row live without closing the dialog.
+    for (const member of members) {
+      const whisperUserIds = activeOwningUsers(member).map(u => u.id);
+      postGroupRollRequestCard(member, { skillName, characteristic, difficulty, modifier, label, whisperUserIds });
+      // Q2 latest-wins — awaitGroupRollTestMessage is one-shot, so RE-ARM it after each capture:
+      // a Fortune reroll fires a fresh createChatMessage (B1) that must OVERWRITE the stored
+      // result, right up until the GM posts the summary or the dialog aborts (signal fires -> the
+      // await resolves null -> stop re-arming). At most one listener is live per member at a time.
+      const armCapture = () => awaitGroupRollTestMessage(member.id, controller.signal).then(result => {
+        if (!result) return; // AbortSignal fired (dialog closed / cancelled) — stop listening.
+        const source = rowState.get(member.id) === "gmRolled" ? "gm" : "self";
+        captured.set(member.id, { memberId: member.id, name: member.name, ...result, source });
+        rowState.set(member.id, source === "gm" ? "gmRolled" : "rolled");
+        refresh();
+        armCapture();
+      });
+      armCapture();
+    }
+
+    const outcome = await foundry.applications.api.DialogV2.wait({
+      window: { title: game.i18n.localize("WFRP4EPARTY.AwaitingRolls") },
+      content: `<p>${game.i18n.format("WFRP4EPARTY.AwaitingRollsPrompt", { count: members.length })}</p>
+        <div class="wfrp4eparty-awaiting-rows">${rowsHtml()}</div>
+        <button type="button" data-action="rollSelectedForThem" style="margin-top:8px;">${game.i18n.localize("WFRP4EPARTY.RollForThem")}</button>`,
+      rejectClose: false,
+      render: (event, dialog) => {
+        dialogInstance = dialog;
+        refresh();
+        dialog.element.querySelector('[data-action="rollSelectedForThem"]')?.addEventListener("click", async ev => {
+          ev.preventDefault();
+          const checked = Array.from(dialog.element.querySelectorAll(".wfrp4eparty-awaiting-check:checked")).map(el => el.value);
+          for (const memberId of checked) await rollMemberForThem(memberId);
+        });
+      },
+      buttons: [
+        { action: "postSummary", label: game.i18n.localize("WFRP4EPARTY.PostSummary"), default: true, callback: () => "post" },
+        { action: "cancel", label: game.i18n.localize("WFRP4EPARTY.Cancel"), callback: () => "cancel" }
+      ]
+    });
+
+    controller.abort(); // the dialog is closed one way or another — stop any still-pending capture listeners.
+    if (outcome !== "post") return null; // Q3 — cancel, or the dialog was closed via the window X (rejectClose:false -> null).
+    return Array.from(captured.values());
+  }
+
+  // Task 2.4 — shared summary renderer for both the box-OFF path and the merged requested+blind
+  // path. Byte-identical to the pre-Phase-8 markup for blind-only results (no `source` field ->
+  // no marker suffix); requested lines additionally carry the self/GM marker (A2).
+  _buildGroupRollSummary(results, { label, difficulty, modifier }) {
     let content = `<h3>${game.i18n.localize("WFRP4EPARTY.GroupRolls")}: <strong>${label}</strong></h3>`
       + `<p>${game.wfrp4e.config.difficultyLabels[difficulty]}${modifier ? ` · ${game.i18n.localize("WFRP4EPARTY.Modifier")} ${modifier > 0 ? "+" : ""}${modifier}` : ""}</p>`;
     for (const r of results) {
@@ -2899,12 +3179,22 @@ export class PartySheet extends BaseWFRP4eActorSheet {
         content += `<strong>${r.name}:</strong> — ${game.i18n.localize("WFRP4EPARTY.NoSkill")}</br>`;
         continue;
       }
+      const marker = r.source === "self" ? ` [${game.i18n.localize("WFRP4EPARTY.RolledSelf")}]`
+        : r.source === "gm" ? ` [${game.i18n.localize("WFRP4EPARTY.RolledByGm")}]` : "";
       content += `${r.success ? "<i class='fas fa-check'></i> " : "<i class='fas fa-xmark'></i> "}`
         + `<strong>${r.name}:</strong> <strong>${r.sl} SL</strong> (${r.roll} v ${r.target})`
-        + `${r.fallback ? ` [${game.i18n.localize("WFRP4EPARTY.CharFallback")}]` : ""}</br>`;
+        + `${r.fallback ? ` [${game.i18n.localize("WFRP4EPARTY.CharFallback")}]` : ""}${marker}</br>`;
     }
+    return content;
+  }
+
+  // GM-whispered summary, GM Toolkit style (group-test.mjs:94-133) — the ChatMessage.create call
+  // stays byte-for-byte the pre-Phase-8 blind form (whisper: GMs, blind: true); only the content
+  // builder above changed.
+  async _postGroupRollSummary(results, { label, difficulty, modifier }) {
+    if (!results || !results.length) return;
     await ChatMessage.create({
-      content,
+      content: this._buildGroupRollSummary(results, { label, difficulty, modifier }),
       whisper: game.users.filter(u => u.isGM).map(u => u.id),
       blind: true
     });
@@ -3211,4 +3501,5 @@ Hooks.on("init", () => {
     makeDefault: true,
     label: "Party Sheet"
   });
+  registerGroupRollRequestHooks();
 })
