@@ -958,3 +958,161 @@
   text-overflow: ellipsis;
 }
 
+/* v1.3.0 — inventory log table + windowed pager (adapted from the economy module's
+   Transaction Log pager visuals; consumes .sheet-list/.list-row from the system, never
+   redefines them). */
+.party-sheet .party-log-table .list-content .list-row {
+  min-height: 0;
+}
+
+/* v1.3.0 (validate polish, 2026-07-23) — log column sizing. Date reuses the system's grow
+   `.list-name`, which claimed all row slack and squeezed the four `.small` content cells to their
+   50px floor (truncating "Test Player" -> "Test …", the coin string -> "3GC …"). Pin Date to its
+   timestamp width and let Who/Action/Item/Amount share the remaining space evenly, so the row
+   reads left-to-right instead of clustering hard right. Scoped per
+   [[feedback_module_css_scoped_no_conflicts]] — the system's own `.list-name`/`.small` untouched. */
+.party-sheet .party-log-table .list-name {
+  flex: 0 0 12.5em;
+  white-space: nowrap;
+}
+
+.party-sheet .party-log-table .small {
+  min-width: 0;
+  text-align: left;
+}
+
+/* Per-column widths: Who / Action / Amount are content-sized so Item can take all remaining space.
+   Action is a single D/W code (full word on hover + the legend under the table); Amount fits a full
+   "888GC 88SS 88BP" coin string. Item keeps the system's overflow ellipsis, with the full name on
+   hover (data-tooltip), so long WFRP trapping names ("Sling with (10 Stones)") stay readable. */
+.party-sheet .party-log-table .party-log-who { flex: 0 0 8em; }
+.party-sheet .party-log-table .party-log-action { flex: 0 0 4.5em; text-align: center; }
+.party-sheet .party-log-table .party-log-item { flex: 1 1 auto; }
+.party-sheet .party-log-table .party-log-amount { flex: 0 0 8.5em; }
+
+.party-sheet .party-log-table .list-controls {
+  flex: 0 0 2em;
+}
+
+/* Footer under the table: action-code legend (D = Deposit · W = Withdraw) on the left, the GM
+   bulk-clear on the right. */
+.party-sheet .party-log-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.3em 0.2em 0;
+}
+
+.party-sheet .party-log-legend {
+  font-size: 0.8em;
+  font-style: italic;
+  opacity: 0.7;
+}
+
+.party-sheet .party-log-clear {
+  flex: 0 0 auto;
+  font-size: 0.85em;
+  cursor: pointer;
+  opacity: 0.75;
+}
+
+.party-sheet .party-log-clear:hover {
+  opacity: 1;
+  color: var(--color-warning, #a33);
+}
+
+/* Per-row delete trash — keep it visible/clickable in its narrow control column. */
+.party-sheet .party-log-table .list-controls .list-control {
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.party-sheet .party-log-table .list-controls .list-control:hover {
+  opacity: 1;
+  color: var(--color-warning, #a33);
+}
+
+.party-sheet .party-log-pager {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.35em;
+  padding: 0.5em 0 0.25em;
+}
+
+.party-sheet .party-log-pager .party-log-page {
+  min-width: 1.9em;
+  padding: 0.15em 0.45em;
+  text-align: center;
+  border: 1px solid var(--color-border-light-primary);
+  border-radius: 3px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.party-sheet .party-log-pager .party-log-page.active {
+  font-weight: bold;
+  cursor: default;
+  border-color: var(--color-border-highlight);
+}
+
+.party-sheet .party-log-pager .party-log-page.disabled {
+  opacity: 0.4;
+  cursor: default;
+  pointer-events: none;
+}
+
+.party-sheet .party-log-pager .party-log-gap {
+  opacity: 0.6;
+}
+
+.party-sheet .party-log-pager .party-log-total {
+  margin-left: 0.6em;
+  font-size: 0.9em;
+  opacity: 0.7;
+}
+
+/* v1.3.0 — keep the ordinary Name / Qty. / Enc. / Value tracks unchanged. Quest binding
+   occupies the otherwise-empty left side of the flexible Value cell instead of adding a
+   fifth track that would push Qty. and Enc. out of alignment with the other item lists. */
+.party-sheet .party-inventory-list .party-quest-value {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  overflow: visible;
+}
+
+.party-sheet .party-quest-bind-slot {
+  flex: 0 1 7.5rem;
+  min-width: 0;
+  margin-left: auto;
+}
+
+/* The select also carries .party-member-category, deliberately reusing the companion/henchman
+   control's complete theme (arrow, parchment, border, focus, and option colours). */
+.party-sheet .party-quest-bind {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: 1.8rem;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.party-sheet .party-quest-bound {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.82em;
+  font-style: italic;
+  text-align: right;
+  opacity: 0.75;
+  margin: 0;
+}
+
+.party-sheet .party-quest-value-label {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}

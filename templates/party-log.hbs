@@ -1,0 +1,61 @@
+<section class="tab {{tab.cssClass}}" data-group="primary" data-tab="{{tab.id}}">
+  <div class="sheet-list party-log-table">
+    <div class="list-header row-content">
+      <div class="list-name">{{localize "WFRP4EPARTY.LogHeadingDate"}}</div>
+      <div class="small party-log-who">{{localize "WFRP4EPARTY.LogHeadingWho"}}</div>
+      <div class="small party-log-action">{{localize "WFRP4EPARTY.LogHeadingAction"}}</div>
+      <div class="small party-log-item">{{localize "WFRP4EPARTY.LogHeadingItem"}}</div>
+      <div class="small party-log-amount">{{localize "WFRP4EPARTY.LogHeadingAmount"}}</div>
+      <div class="list-controls"></div>
+    </div>
+    <div class="list-content">
+      {{#each log.entries as |e|}}
+        <div class="list-row" data-log-id="{{e.id}}">
+          <div class="row-content">
+            <div class="list-name"><a class="label">{{e.dateDisplay}}</a></div>
+            <div class="small party-log-who">{{e.who}}</div>
+            <div class="small party-log-action" data-tooltip="{{e.actionLabel}}">{{e.actionShort}}</div>
+            <div class="small party-log-item" data-tooltip="{{e.item}}">{{e.item}}</div>
+            <div class="small party-log-amount">{{e.amount}}</div>
+            <div class="list-controls">
+              {{!-- @root.log.isGM: bare `log` does not resolve inside the entries loop (context is
+                   the entry); the footer's Clear Log works only because it sits outside the loop.
+                   Mirrors the inventory rows' @root.isGM gating. --}}
+              {{#if @root.log.isGM}}
+                <a class="list-control" data-action="deleteLogEntry" data-tooltip="{{localize 'WFRP4EPARTY.LogDeleteTooltip'}}"><i class="fas fa-trash"></i></a>
+              {{/if}}
+            </div>
+          </div>
+        </div>
+      {{else}}
+        <div class="list-row empty">
+          <span class="label">{{localize "WFRP4EPARTY.LogEmpty"}}</span>
+        </div>
+      {{/each}}
+    </div>
+  </div>
+
+  {{#if log.total}}
+    <div class="party-log-footer">
+      <span class="party-log-legend">{{localize "WFRP4EPARTY.LogActionKey"}}</span>
+      {{#if log.isGM}}
+        <a class="party-log-clear" data-action="clearLog" data-tooltip="{{localize 'WFRP4EPARTY.LogClearTooltip'}}"><i class="fas fa-trash-can"></i> {{localize "WFRP4EPARTY.LogClear"}}</a>
+      {{/if}}
+    </div>
+  {{/if}}
+
+  {{#if log.showPager}}
+    <div class="party-log-pager">
+      <a class="party-log-page{{#if log.prevDisabled}} disabled{{/if}}" data-action="setLogPage" data-page="{{log.prevPage}}">&laquo;</a>
+      {{#each log.pager as |p|}}
+        {{#if p.gap}}
+          <span class="party-log-gap">&hellip;</span>
+        {{else}}
+          <a class="party-log-page{{#if p.active}} active{{/if}}" data-action="setLogPage" data-page="{{p.number}}">{{p.number}}</a>
+        {{/if}}
+      {{/each}}
+      <a class="party-log-page{{#if log.nextDisabled}} disabled{{/if}}" data-action="setLogPage" data-page="{{log.nextPage}}">&raquo;</a>
+      <span class="party-log-total" data-tooltip="{{localize 'WFRP4EPARTY.LogTotalTooltip'}}">{{log.total}}</span>
+    </div>
+  {{/if}}
+</section>

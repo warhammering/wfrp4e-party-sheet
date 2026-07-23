@@ -905,6 +905,16 @@ async function performSetPartyItemQuantity(partyActor, itemId, requested, reques
   return { ok: false, reason: "target-verify-failed", before, rolledBack };
 }
 
+// v1.3.0 — whole-array read-modify-write append, mirroring journey.log's write idiom.
+// Runs GM-side inside the mutation handler, where the party actor is writable. Exported so the
+// drag-out completion hook in party-sheet.js (which removes the pool stack directly, outside the
+// move-item handler) can log a withdraw the same way the button/handler path does.
+export async function appendInventoryLog(partyActor, entry) {
+  const log = foundry.utils.deepClone(partyActor.system.inventoryLog ?? []);
+  log.push({ id: foundry.utils.randomID(), date: Date.now(), ...entry });
+  await partyActor.update({ "system.inventoryLog": log });
+}
+
 export async function addItem(partyActor, itemData) {
   return requestMutation("add-item", { partyActorId: partyActor.id, itemData });
 }
@@ -925,7 +935,24 @@ registerMutationHandler("move-item", async (payload, { requester }) => {
   if (denied) return { ok: false, reason: denied };
   const amount = Number(payload.amount);
   if (!Number.isFinite(amount) || amount <= 0) return { ok: false, reason: "bad-amount" };
-  return performMoveItem({ fromActor, toActor, itemId: payload.itemId, amount, requester });
+  const movingItem = fromActor.items.get(payload.itemId);
+  const result = await performMoveItem({ fromActor, toActor, itemId: payload.itemId, amount, requester });
+  const partyIsTo = toActor.type === PARTY_ACTOR_TYPE;
+  const partyIsFrom = fromActor.type === PARTY_ACTOR_TYPE;
+  // v1.3.0 — every PC↔pool move logs regardless of requester: GM-initiated moves log the same
+  // as a player's (who = the non-party member). The party-is-one-side guard still excludes
+  // member↔member moves; compendium drops go through the separate `add-item` handler and stay
+  // unlogged (there is no "from a PC" for a freshly materialized item).
+  if (result.ok && (partyIsTo || partyIsFrom)) {
+    const party = partyIsTo ? toActor : fromActor;
+    await appendInventoryLog(party, {
+      who: partyIsTo ? fromActor.name : toActor.name,
+      action: partyIsTo ? "deposit" : "withdraw",
+      item: movingItem?.name ?? "—",
+      amount: String(amount),
+    });
+  }
+  return result;
 });
 
 registerMutationHandler("move-coins", async (payload, { requester }) => {
@@ -948,7 +975,22 @@ registerMutationHandler("move-coins", async (payload, { requester }) => {
     || !Object.keys(secondaryCoins).every(k => validSecondaryKeys.has(k))) {
     return { ok: false, reason: "bad-amount" };
   }
-  return performMoveCoins({ fromActor, toActor, coins, secondaryCoins });
+  const result = await performMoveCoins({ fromActor, toActor, coins, secondaryCoins });
+  const partyIsTo = toActor.type === PARTY_ACTOR_TYPE;
+  const partyIsFrom = fromActor.type === PARTY_ACTOR_TYPE;
+  // v1.3.0 — coin moves log on the same rule as item moves above: every PC↔pool move logs
+  // regardless of requester (GM moves log like players); member↔member is excluded by the
+  // party-is-one-side guard.
+  if (result.ok && (partyIsTo || partyIsFrom)) {
+    const party = partyIsTo ? toActor : fromActor;
+    await appendInventoryLog(party, {
+      who: partyIsTo ? fromActor.name : toActor.name,
+      action: partyIsTo ? "deposit" : "withdraw",
+      item: game.i18n.localize("WFRP4E.TrappingType.Money"),
+      amount: currency.formatCoinLog(coins, secondaryCoins),
+    });
+  }
+  return result;
 });
 
 registerMutationHandler("add-item", async (payload, { requester }) => {

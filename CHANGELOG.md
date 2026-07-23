@@ -5,6 +5,35 @@ All notable changes to this module are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] — 2026-07-23
+
+### Added
+
+- **Inventory log.** The shared pool now keeps a running history of who deposited or withdrew
+  what. A new **Log** tab lists every deposit and withdrawal — date, who, D/W (with a legend
+  beneath), the item (or "Money"), and the amount — newest first, 10 rows per page.
+- **Quest item binding.** Quest items can now be tagged with which character they belong to. A
+  compact dropdown in the open space between Encumbrance and Value (GM only) lets you pick a
+  party member by their full character name; everyone then sees that full name on the row.
+
+### Changed
+
+- **Coin abbreviations** on the party sheet now read as `2GC 24ss 2bp` — gold capitalised, silver
+  and brass lowercase.
+
+### Notes
+
+- **GM activity is logged too.** When you (the GM) move an item or coins between a character and
+  the pool — including by dragging an item out to a character — it's recorded just like a player's
+  move. Only compendium drops (a brand-new item dropped straight onto the pool) stay unlogged.
+- **Withdraw by dragging** an item from the pool onto a character now asks "how many?" — the same
+  prompt depositing already showed.
+- **Deleting log entries** — each row has its own trash-icon delete (GM only), plus a **Clear Log**
+  button to wipe the whole log at once.
+- **Binding is display-only.** It doesn't change who can withdraw a quest item — that's still
+  GM-only, exactly as before.
+- If the sheet looks off after updating, the client is running cached code — reload with **Ctrl+F5**.
+
 ## [1.2.0] — 2026-07-23
 
 ### Added

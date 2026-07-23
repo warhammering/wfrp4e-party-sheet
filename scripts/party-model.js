@@ -143,6 +143,17 @@ export class PartyModel extends BaseActorModel
         gmOnly: new fields.BooleanField({initial: false}),
       })),
     });
+    // v1.3.0 — deposit/withdraw audit trail, keyed per-party (mirrors journey.log's whole-array
+    // ArrayField shape). Absent field defaults [] — existing parties need no migration, same
+    // reasoning as the parallel fields above.
+    schema.inventoryLog = new fields.ArrayField(new fields.SchemaField({
+      id: new fields.StringField({ initial: "" }),
+      date: new fields.NumberField({ integer: true, initial: 0 }),   // epoch millis (Date.now())
+      who: new fields.StringField({ initial: "" }),                   // member name snapshot
+      action: new fields.StringField({ choices: ["deposit", "withdraw"], initial: "deposit" }),
+      item: new fields.StringField({ initial: "" }),                  // item name, or localized "Money"
+      amount: new fields.StringField({ initial: "" }),               // "3" for units, "5gc 3ss" for coins
+    }));
     schema.details = new fields.SchemaField({
       public: new fields.HTMLField(),
       gm: new fields.HTMLField(),

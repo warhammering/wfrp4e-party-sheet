@@ -14,6 +14,7 @@ for (const file of [
   "scripts/transfer.js",
   "scripts/journey.js",
   "scripts/party-sheet.js",
+  "scripts/currency.js",
 ]) {
   execFileSync(process.execPath, ["--check", `${root}/${file}`], { stdio: "pipe" });
 }
@@ -108,6 +109,27 @@ assert.equal(maxActive, 1);
 assert.deepEqual(order, ["start1", "end1", "start2", "end2"]);
 assert.ok(queueResults.every(result => result.ok));
 pass("authoritative mutation queue is serial");
+
+// v1.3.0 — inventory log + quest-item character binding surface presence.
+const partyModelSource = read("scripts/party-model.js");
+const currencySource = read("scripts/currency.js");
+const partyInventoryTemplate = read("templates/party-inventory.hbs");
+const partyCssSource = read("styles/party.css");
+assert.match(partyModelSource, /schema\.inventoryLog = new fields\.ArrayField/);
+assert.match(currencySource, /export function formatCoinLog/);
+assert.match(transferSource, /appendInventoryLog/);
+assert.match(partySheetSource, /questBoundTo/);
+assert.match(partySheetSource, /_onSetQuestBinding/);
+assert.match(partySheetSource, /setQuestBinding/);
+assert.match(partySheetSource, /name: ref\.document\.name/);
+assert.doesNotMatch(partySheetSource, /questBindDisplayName|QUEST_BIND_HONORIFICS/);
+assert.match(partyInventoryTemplate, /class="party-member-category party-quest-bind"/);
+assert.match(partyInventoryTemplate, /<option value=""><\/option>/);
+assert.doesNotMatch(partyInventoryTemplate, /QuestBindNone/);
+assert.match(partyInventoryTemplate, /class="small party-col-value party-quest-value"/);
+assert.doesNotMatch(partyInventoryTemplate, /class="party-col-bind"/);
+assert.match(partyCssSource, /\.party-quest-bind-slot/);
+pass("v1.3.0 inventory log + full-name quest binding value-space control present");
 
 const transfer = await import(`../scripts/transfer.js?test=${Date.now()}`);
 const identity = transfer._internals.stackIdentity;

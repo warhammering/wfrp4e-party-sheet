@@ -84,7 +84,15 @@ function coreFallback() {
 
 function load() {
   if (cache) return cache;
-  cache = (itemPilesActive() && readFromItemPiles()) || coreFallback();
+  const cfg = (itemPilesActive() && readFromItemPiles()) || coreFallback();
+  // Party-sheet display convention (user directive 2026-07-23): the top (gold) denomination keeps
+  // its capitalized abbreviation; every smaller denomination — silver, brass, and any secondary —
+  // renders lowercase ("2GC 24ss 2bp"). `primary` is sorted descending, so index 0 is the gold.
+  // abbrev is display-only here (all matching is by coinValue/id), so lowercasing it is safe.
+  cache = {
+    primary: cfg.primary.map((d, i) => (i === 0 ? d : { ...d, abbrev: (d.abbrev ?? "").toLowerCase() })),
+    secondary: cfg.secondary.map(d => ({ ...d, abbrev: (d.abbrev ?? "").toLowerCase() })),
+  };
   return cache;
 }
 
@@ -143,6 +151,23 @@ function warnChainInvalid(larger, smaller) {
   if (warnedInvalidChain || typeof ui === "undefined") return;
   warnedInvalidChain = true;
   ui.notifications.warn(game.i18n.format("WFRP4EPARTY.CurrencyChainInvalid", { larger, smaller }));
+}
+
+// v1.3.0 — coin+secondary label for the inventory log's Amount column. Mirrors
+// party-sheet.js's formatCoinLabel (primary loop, zero-suppression, "—" for empty) but also
+// walks the secondary denominations, keyed by `id` rather than `coinValue` (secondaries have
+// no reliable coinValue). Kept self-contained here rather than refactoring formatCoinLabel.
+export function formatCoinLog(coins, secondaryCoins) {
+  const parts = [];
+  for (const denom of getDenominations()) {
+    const count = coins?.[denom.coinValue];
+    if (count) parts.push(`${count}${denom.abbrev}`);
+  }
+  for (const denom of getSecondaryDenominations()) {
+    const count = secondaryCoins?.[denom.id];
+    if (count) parts.push(`${count}${denom.abbrev}`);
+  }
+  return parts.length ? parts.join(" ") : "—";
 }
 
 export function isChainValid(explicitCoinValues) {

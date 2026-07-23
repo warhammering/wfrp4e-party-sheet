@@ -177,7 +177,23 @@
                   <a class="small party-col-qty">{{item.quantity}}</a>
                 {{/if}}
                 <div class="small">{{item.encumbrance}}</div>
-                <div class="small party-col-value">{{item.valueLabel}}</div>
+                {{! Keep the standard inventory tracks intact. The binding lives inside the unused
+                    left side of Value, so Qty. and Enc. align with every other item section. }}
+                <div class="small party-col-value party-quest-value">
+                  <span class="party-quest-bind-slot">
+                    {{#if @root.isGM}}
+                      <select class="party-member-category party-quest-bind" data-action="setQuestBinding" data-tooltip="{{localize 'WFRP4EPARTY.QuestBindTooltip'}}">
+                        <option value=""></option>
+                        {{#each @root.inventory.questBindOptions as |opt|}}
+                          <option value="{{opt.id}}" {{#if (eq opt.id item.boundTo)}}selected{{/if}}>{{opt.name}}</option>
+                        {{/each}}
+                      </select>
+                    {{else}}
+                      {{#if item.boundLabel}}<span class="party-quest-bound" data-tooltip="{{item.boundLabel}}">{{item.boundLabel}}</span>{{/if}}
+                    {{/if}}
+                  </span>
+                  <span class="party-quest-value-label">{{item.valueLabel}}</span>
+                </div>
                 <div class="list-controls">
                   {{#if item.canWithdraw}}
                     <a class="list-control party-kebab" data-tooltip="{{localize 'WFRP4EPARTY.ItemMenuTooltip'}}"><i class="fas fa-ellipsis-vertical"></i></a>

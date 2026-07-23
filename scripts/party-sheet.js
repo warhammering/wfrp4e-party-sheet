@@ -396,6 +396,10 @@ export class PartySheet extends BaseWFRP4eActorSheet {
     toggleRevealStats: PartySheet._onToggleRevealStats,
       toggleMemberCollapse: PartySheet._onToggleMemberCollapse,
       toggleInventorySortAlpha: PartySheet._onToggleInventorySortAlpha,
+      setLogPage: PartySheet._onSetLogPage,
+      deleteLogEntry: PartySheet._onDeleteLogEntry,
+      clearLog: PartySheet._onClearLog,
+      setQuestBinding: PartySheet._onSetQuestBinding,
     },
     // v1.1.0 — the second entry makes member cards draggable for the GM roster reorder. The first
     // is warhammer-lib's own inventory selector (warhammer-lib.js:7148), restated because
@@ -428,6 +432,11 @@ export class PartySheet extends BaseWFRP4eActorSheet {
       id: "journey",
       group: "primary",
       label: "WFRP4EPARTY.TabJourney",
+    },
+    log: {
+      id: "log",
+      group: "primary",
+      label: "WFRP4EPARTY.TabLog",
     }
   }
 
@@ -437,6 +446,7 @@ export class PartySheet extends BaseWFRP4eActorSheet {
     members: { scrollable: [""], template: "modules/wfrp4e-party-sheet/templates/party-members.hbs" },
     inventory: { scrollable: [""], template: "modules/wfrp4e-party-sheet/templates/party-inventory.hbs" },
     journey: { scrollable: [""], template: "modules/wfrp4e-party-sheet/templates/party-journey.hbs" },
+    log: { scrollable: [""], template: "modules/wfrp4e-party-sheet/templates/party-log.hbs" },
   }
 
   async _handleEnrichment() {
@@ -570,6 +580,7 @@ export class PartySheet extends BaseWFRP4eActorSheet {
     // every handler (CCR-2) — this context object itself carries no secret data (encounter
     // results aren't hidden-roll secrets in the WFRP sense, just GM pacing information).
     context.journey = this._prepareJourneyContext(context);
+    context.log = this._prepareLogContext();
     return context;
   }
 
@@ -702,6 +713,50 @@ export class PartySheet extends BaseWFRP4eActorSheet {
       return { name: actor.name, tier: game.wfrp4e.config.statusTiers[tierKey], penalty };
     }).filter(Boolean);
     return { penalties };
+  }
+
+  // v1.3.0 — 10/page windowed pager over the newest-first inventory log (adapted from the
+  // economy module's Transaction Log pager: economy-view-form.js _renderTransactionLogPager).
+  // `this._logPage` is a transient view-position instance field (not persisted), same as
+  // economy's `this._txnLogPage`.
+  _prepareLogContext() {
+    const PAGE_SIZE = 10;
+    const entries = [...this.document.system.inventoryLog].reverse();
+    const total = entries.length;
+    const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    this._logPage = Math.min(Math.max(this._logPage ?? 1, 1), pageCount);
+    const page = this._logPage;
+    const start = (page - 1) * PAGE_SIZE;
+    const pageEntries = entries.slice(start, start + PAGE_SIZE).map(e => ({
+      ...e,
+      dateDisplay: new Date(e.date).toLocaleString(),
+      actionLabel: game.i18n.localize(e.action === "withdraw" ? "WFRP4EPARTY.LogActionWithdraw" : "WFRP4EPARTY.LogActionDeposit"),
+      actionShort: game.i18n.localize(e.action === "withdraw" ? "WFRP4EPARTY.LogActionWithdrawShort" : "WFRP4EPARTY.LogActionDepositShort"),
+    }));
+
+    // Windowed pager: first, prev, current, next, last — deduped, gaps collapsed to {gap:true}.
+    const wanted = [...new Set([1, page - 1, page, page + 1, pageCount])]
+      .filter(p => p >= 1 && p <= pageCount)
+      .sort((a, b) => a - b);
+    const pager = [];
+    for (let i = 0; i < wanted.length; i++) {
+      if (i > 0 && wanted[i] - wanted[i - 1] > 1) pager.push({ gap: true });
+      pager.push({ number: wanted[i], active: wanted[i] === page });
+    }
+
+    return {
+      entries: pageEntries,
+      total,
+      page,
+      pageCount,
+      pager,
+      showPager: pageCount > 1,
+      prevDisabled: page <= 1,
+      nextDisabled: page >= pageCount,
+      prevPage: Math.max(1, page - 1),
+      nextPage: Math.min(pageCount, page + 1),
+      isGM: game.user.isGM,
+    };
   }
 
   // v1.1.0 — stable ordering for one member group. A member with a stored `memberSort` value sorts
@@ -876,12 +931,21 @@ export class PartySheet extends BaseWFRP4eActorSheet {
     // them in would silently change a number the GM already reads), but they are no longer
     // valueless — same unit-price x quantity arithmetic as a category row.
     let questTotalBrass = 0;
+    // v1.3.0 — resolved once for the dropdown options; mirrors party-model.js's capacity getter
+    // live-ref idiom (ref.document && game.actors.get(ref.id)), never a stale cached reference.
+    const questBindOptions = this.document.system.members.list
+      .filter(ref => ref.document && game.actors.get(ref.id))
+      .map(ref => ({ id: ref.id, name: ref.document.name }));
     const questItems = questSorted.map(item => {
       const quantity = item.system.quantity?.value ?? 0;
       const stackBrass = coinsToBrass(item.system.price) * quantity;
       questTotalBrass += stackBrass;
+      const boundTo = item.getFlag(MODULE_ID, "questBoundTo") ?? "";
+      const boundActor = boundTo ? game.actors.get(boundTo) : null;
       return {
         id: item.id,
+        boundTo,
+        boundLabel: boundActor?.name ?? "",
         // v0.3.0 — `uuid` was missing here (and `data-uuid` from the template row), which silently
         // disabled BOTH the system's right-click menu and drag entirely: every entry in
         // _getContextMenuOptions is gated on `li.dataset.uuid` (wfrp4e.js:3562), and warhammer-lib's
@@ -954,7 +1018,7 @@ export class PartySheet extends BaseWFRP4eActorSheet {
     const grandTotalCoins = brassToCoins(grandTotalBrass);
     const questTotalCoins = brassToCoins(questTotalBrass);
     return {
-      categories, hasCategories, questItems, showQuestSection, money, encumbrance, canWithdraw,
+      categories, hasCategories, questItems, questBindOptions, showQuestSection, money, encumbrance, canWithdraw,
       grandTotal: grandTotalCoins, grandTotalLabel: formatCoinLabel(grandTotalCoins),
       questTotal: questTotalCoins, questTotalLabel: formatCoinLabel(questTotalCoins),
       alphaSort
@@ -1454,6 +1518,19 @@ export class PartySheet extends BaseWFRP4eActorSheet {
     const id = target.closest("[data-id]")?.dataset.id;
     if (!id) return;
     await this.document.update(this.document.system.setMemberCategory(id, target.value));
+  }
+
+  // v1.3.0 — GM-only quest-item -> character binding, display-only (mirrors questItem's own
+  // set/unset flag idiom; no withdraw/behaviour gating). `-=` unset avoids persisting a bound-to-""
+  // flag key that would otherwise deep-merge back in (same reasoning as party-model.js removeMember).
+  static async _onSetQuestBinding(ev, target) {
+    if (!game.user.isGM) return ui.notifications.warn(game.i18n.localize("WFRP4EPARTY.GMOnly"));
+    const itemId = target.closest("[data-id]")?.dataset.id;
+    const item = itemId ? this.document.items.get(itemId) : null;
+    if (!item) return;
+    const value = target.value;
+    if (value) await item.setFlag(MODULE_ID, "questBoundTo", value);
+    else await item.unsetFlag(MODULE_ID, "questBoundTo");
   }
 
   // Phase 8 (005) — GM-only per-member opt-in to reveal an NPC's stats to players. Delegated
@@ -2870,6 +2947,43 @@ export class PartySheet extends BaseWFRP4eActorSheet {
     await this.document.update({ "system.journey.log": [] });
   }
 
+  // v1.3.0 — inventory-log pager: sets the transient page position and re-renders.
+  static async _onSetLogPage(ev, target) {
+    const page = Number(target.dataset.page);
+    if (!Number.isFinite(page)) return;
+    this._logPage = page;
+    this.render();
+  }
+
+  // v1.3.0 — GM-only per-row delete (mirrors journey's whole-array-filter delete idiom).
+  static async _onDeleteLogEntry(ev, target) {
+    if (!game.user.isGM) return ui.notifications.warn(game.i18n.localize("WFRP4EPARTY.GMOnly"));
+    const logId = target.closest("[data-log-id]")?.dataset.logId;
+    if (!logId) return;
+    const confirmed = await foundry.applications.api.DialogV2.confirm({
+      window: { title: game.i18n.localize("WFRP4EPARTY.LogDeleteTitle") },
+      content: game.i18n.localize("WFRP4EPARTY.LogDeleteConfirm"),
+    });
+    if (!confirmed) return;
+    const remaining = this.document.system.inventoryLog.filter(e => e.id !== logId);
+    await this.document.update({ "system.inventoryLog": remaining });
+    this.render();
+  }
+
+  // v1.3.0 — GM-only bulk clear of the whole inventory log (whole-array replace with []).
+  static async _onClearLog(ev, target) {
+    if (!game.user.isGM) return ui.notifications.warn(game.i18n.localize("WFRP4EPARTY.GMOnly"));
+    if (!this.document.system.inventoryLog.length) return;
+    const confirmed = await foundry.applications.api.DialogV2.confirm({
+      window: { title: game.i18n.localize("WFRP4EPARTY.LogClearTitle") },
+      content: game.i18n.localize("WFRP4EPARTY.LogClearConfirm"),
+    });
+    if (!confirmed) return;
+    await this.document.update({ "system.inventoryLog": [] });
+    this._logPage = 1;
+    this.render();
+  }
+
   // E.1 — Arrival tests: Lore (region) Average (+20), Gossip Challenging (+0).
   // Lore (region) is a specialised skill ("Lore (Reikland)", "Lore (the Moot)", ...) — there
   // is no single "Lore" skill to roll. Enumerate every Lore specialisation actually owned by
@@ -3386,7 +3500,7 @@ export class PartySheet extends BaseWFRP4eActorSheet {
     // it's rebound every render rather than attached once to a node that gets replaced).
     if (this._journeyChangeListener) this.element.removeEventListener("change", this._journeyChangeListener);
     this._journeyChangeListener = async (event) => {
-      const el = event.target.closest('[data-action="assignEndeavour"], [data-action="setEndeavourSkill"], [data-action="setEndeavourModifier"], [data-action="setWeatherLabel"], [data-action="setItemQuantity"], [data-action="setCapacityBonus"], [data-action="setMemberCategory"], [data-action="toggleRevealStats"]');
+      const el = event.target.closest('[data-action="assignEndeavour"], [data-action="setEndeavourSkill"], [data-action="setEndeavourModifier"], [data-action="setWeatherLabel"], [data-action="setItemQuantity"], [data-action="setCapacityBonus"], [data-action="setMemberCategory"], [data-action="toggleRevealStats"], [data-action="setQuestBinding"]');
       if (!el) return;
       const action = el.dataset.action;
       if (action === "assignEndeavour") await PartySheet._onAssignEndeavour.call(this, event, el);
@@ -3396,6 +3510,7 @@ export class PartySheet extends BaseWFRP4eActorSheet {
       else if (action === "setItemQuantity") await PartySheet._onSetItemQuantity.call(this, event, el);
       else if (action === "setCapacityBonus") await PartySheet._onSetCapacityBonus.call(this, event, el);
       else if (action === "setMemberCategory") await PartySheet._onSetMemberCategory.call(this, event, el);
+      else if (action === "setQuestBinding") await PartySheet._onSetQuestBinding.call(this, event, el);
     };
     this.element.addEventListener("change", this._journeyChangeListener);
   }
@@ -3459,7 +3574,44 @@ Hooks.on("preUpdateItem", (item, changes, options, userId) => {
   return rejectCapacityWrite(partyActor, incomingEnc, userId);
 });
 
+// v1.3.0 — a drag from the pool onto a member's sheet is a WITHDRAW; make it prompt for the amount
+// and log, exactly like the row's withdraw button. The receiving core sheet would otherwise copy the
+// WHOLE stack with no prompt. We intercept the marked copy at preCreate, CANCEL it, and re-route
+// through the transactional withdraw (`_promptTransferAmount` + `transfer.withdraw`, which moves the
+// chosen amount AND logs via the move-item handler). The async re-route is fire-and-forget after the
+// synchronous `return false` — a preCreate hook cannot await before the create resolves. This is the
+// primary path; the createItem completion hook below now only fires as a duplication-safety fallback
+// if this cancel ever fails to take.
+Hooks.on("preCreateItem", (item, data, options, userId) => {
+  const marker = options?.[POOL_MOVE_FLAG];
+  if (!marker || userId !== game.user.id || !game.user.isGM) return;
+  const recipient = item.parent;
+  // No recipient actor, or a drop that landed back on the party itself — leave the normal path to it.
+  if (!recipient || recipient.uuid === marker.partyUuid) return;
+  (async () => {
+    const party = await fromUuid(marker.partyUuid);
+    const source = party?.items?.get(marker.itemId);
+    if (!party || !source) return;
+    const fullQty = source.type === "cargo" ? (source.system.encumbrance?.value ?? 0) : (source.system.quantity?.value ?? 0);
+    let amount = fullQty;
+    if (fullQty > 1) {
+      amount = await party.sheet._promptTransferAmount(fullQty, "WFRP4EPARTY.WithdrawAmountTitle");
+      if (amount === null) return;   // GM cancelled — nothing moves (the raw copy was already cancelled)
+    }
+    const result = await transfer.withdraw(party, recipient, marker.itemId, amount);
+    if (!result.ok && result.reason !== "not-owner") {
+      ui.notifications.error(game.i18n.localize("WFRP4EPARTY.TransferFailed"));
+    }
+  })();
+  return false;   // cancel the raw whole-stack copy; the withdraw above re-creates the chosen amount
+});
+
 // Phase 8 (004) — completes a GM drag from the pool onto a member's sheet as a MOVE.
+//
+// FALLBACK (v1.3.0): the preCreateItem hook above now intercepts marked drops, prompts, and re-routes
+// through the transactional withdraw — so in normal operation this completion hook no longer fires for
+// a drag-out (the create is cancelled first). It is retained as a duplication-safety net: if the
+// cancel ever fails and the raw copy lands, this still removes the pool's source stack (and logs).
 //
 // The receiving sheet has already created its copy by the time this fires; all that is left is
 // removing the pool's source stack. That ordering is forced on us — we do not control the other
@@ -3492,6 +3644,22 @@ Hooks.on("createItem", async (item, options, userId) => {
       console.error("wfrp4e-party-sheet | rollback ALSO failed", rollbackErr);
       ui.notifications.error(game.i18n.format("WFRP4EPARTY.PoolMoveDuplicate", { name: item.name }));
     }
+    return;   // move failed (and was rolled back) — do NOT log it
+  }
+
+  // v1.3.0 — the move succeeded: a drag-out is a withdrawal, so log it like the button/handler
+  // withdraw path (which the move-item handler logs). This marker-completed path never touches that
+  // handler, so the log write lives here. who = the receiving member; amount = the moved stack's
+  // quantity. Outside the try/catch above so a log-write failure can never roll back a good move.
+  try {
+    await transfer.appendInventoryLog(party, {
+      who: item.parent?.name ?? "—",
+      action: "withdraw",
+      item: item.name,
+      amount: String(item.type === "cargo" ? (item.system.encumbrance?.value ?? 0) : (item.system.quantity?.value ?? 0)),
+    });
+  } catch (logErr) {
+    console.error("wfrp4e-party-sheet | pool move succeeded but log write failed", logErr);
   }
 });
 
