@@ -35,6 +35,29 @@ jobs:
             fs.writeFileSync("module.json", JSON.stringify(m, null, 2) + "\n");
           '
 
+      - name: Extract release notes from CHANGELOG.md
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          node <<'NODE'
+            const fs = require("fs");
+            const version = process.env.TAG.replace(/^v/, "");
+            const changelog = fs.readFileSync("CHANGELOG.md", "utf8");
+            const escaped = version.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            const heading = new RegExp(`^## \\[${escaped}\\][^\\r\\n]*\\r?\\n`, "m");
+            const match = changelog.match(heading);
+
+            if (!match) throw new Error(`CHANGELOG.md has no section for ${process.env.TAG}`);
+
+            const tail = changelog.slice(match.index + match[0].length);
+            const next = tail.search(/^## \[/m);
+            const notes = (next === -1 ? tail : tail.slice(0, next)).trim();
+
+            if (!notes) throw new Error(`CHANGELOG.md section for ${process.env.TAG} is empty`);
+
+            fs.writeFileSync("release-notes.md", `${notes}\n`);
+          NODE
+
       - name: Build module.zip
         run: zip -r module.zip module.json scripts styles templates lang assets packs README.md LICENSE
 
@@ -42,6 +65,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           name: ${{ github.ref_name }}
+          body_path: release-notes.md
           files: |
             module.json
             module.zip
