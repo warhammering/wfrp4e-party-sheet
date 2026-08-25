@@ -64,7 +64,7 @@
   },
   "compatibility": {
     "minimum": "13",
-    "verified": "13"
+    "verified": "14"
   },
   "license": "MIT",
   "readme": "https://github.com/warhammering/wfrp4e-party-sheet/blob/main/README.md",
