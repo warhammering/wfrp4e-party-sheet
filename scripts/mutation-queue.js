@@ -28,13 +28,16 @@ async function execute(operation, payload, requester) {
   }
 }
 
-async function onSocketMessage(message) {
+async function onSocketMessage(message, senderUserId) {
   if (!message || message.moduleId !== MODULE_ID) return;
 
   if (message.kind === "response") {
     if (message.recipientId !== game.user.id) return;
     const pending = pendingRequests.get(message.requestId);
     if (!pending) return;
+    // Only the GM this request was addressed to may resolve it — judged by
+    // Foundry's transport-supplied sender identity, never a payload field.
+    if (senderUserId !== pending.gmId) return;
     clearTimeout(pending.timeout);
     pendingRequests.delete(message.requestId);
     pending.resolve(message.result);
@@ -45,7 +48,9 @@ async function onSocketMessage(message) {
   const activeGM = game.users.activeGM;
   if (!game.user.isGM || !activeGM || activeGM.id !== game.user.id || message.gmId !== game.user.id) return;
 
-  const requester = game.users.get(message.requesterId);
+  // The acting user is the transport-authenticated socket sender; a
+  // client-authored payload field could spoof another party member.
+  const requester = game.users.get(senderUserId);
   const result = requester?.active
     ? await enqueue(() => execute(message.operation, message.payload, requester))
     : failure("requester-missing");
@@ -54,7 +59,7 @@ async function onSocketMessage(message) {
     moduleId: MODULE_ID,
     kind: "response",
     requestId: message.requestId,
-    recipientId: message.requesterId,
+    recipientId: senderUserId,
     result,
   });
 }
@@ -83,14 +88,13 @@ export async function requestMutation(operation, payload) {
       pendingRequests.delete(requestId);
       resolve(failure("mutation-timeout"));
     }, REQUEST_TIMEOUT_MS);
-    pendingRequests.set(requestId, { resolve, timeout });
+    pendingRequests.set(requestId, { resolve, timeout, gmId: activeGM.id });
   });
 
   game.socket.emit(SOCKET_CHANNEL, {
     moduleId: MODULE_ID,
     kind: "request",
     requestId,
-    requesterId: game.user.id,
     gmId: activeGM.id,
     operation,
     payload,

@@ -159,5 +159,72 @@ assert.equal(identity(base), identity(equivalent));
 assert.notEqual(identity(base), identity(distinct));
 pass("canonical stack identity preserves meaningful differences");
 
+// BUG-880 — the acting party member must come from Foundry's transport-supplied socket sender
+// argument (game.socket.on(channel, (data, senderUserId) => ...)), never from a client-authored
+// payload field. A forged requesterId must not select the requester, and a response must only be
+// accepted from the GM the request was addressed to.
+{
+  const emitted = [];
+  let socketHandler = null;
+  globalThis.foundry.utils.randomID = () => "rid-identity-test";
+  globalThis.game = {
+    user: { id: "gm-test", isGM: true },
+    users: {
+      activeGM: { id: "gm-test" },
+      get: id => ({ "player-a": { id: "player-a", active: true } })[id],
+    },
+    socket: {
+      on: (channel, fn) => { socketHandler = fn; },
+      emit: (channel, msg) => emitted.push(msg),
+    },
+  };
+  const identityQueue = await import(`../scripts/mutation-queue.js?test=identity-${Date.now()}`);
+  identityQueue.initializeMutationQueue();
+  const seenRequesters = [];
+  identityQueue.registerMutationHandler("test-identity", async (payload, { requester }) => {
+    seenRequesters.push(requester.id);
+    return { ok: true };
+  });
+  await socketHandler({
+    moduleId: "wfrp4e-party-sheet",
+    kind: "request",
+    requestId: "forged-request",
+    requesterId: "victim", // attacker-authored payload field — must be ignored
+    gmId: "gm-test",
+    operation: "test-identity",
+    payload: {},
+  }, "player-a");
+  assert.deepEqual(seenRequesters, ["player-a"]);
+  assert.equal(emitted.length, 1);
+  assert.equal(emitted[0].recipientId, "player-a");
+
+  // Response path: only the addressed GM's transport identity may resolve a pending request.
+  globalThis.game.user = { id: "player-a", isGM: false };
+  globalThis.game.users.activeGM = { id: "gm-real" };
+  const pendingResult = identityQueue.requestMutation("test-identity", {});
+  const requestId = emitted[1].requestId;
+  assert.equal(Object.hasOwn(emitted[1], "requesterId"), false);
+  let settled = false;
+  pendingResult.then(() => { settled = true; });
+  await socketHandler({
+    moduleId: "wfrp4e-party-sheet",
+    kind: "response",
+    requestId,
+    recipientId: "player-a",
+    result: { ok: true, forged: true },
+  }, "attacker");
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(settled, false);
+  await socketHandler({
+    moduleId: "wfrp4e-party-sheet",
+    kind: "response",
+    requestId,
+    recipientId: "player-a",
+    result: { ok: true },
+  }, "gm-real");
+  assert.deepEqual(await pendingResult, { ok: true });
+  pass("mutation identity binds to transport sender, not payload fields");
+}
+
 console.log(`PASS ${passed.length}/${passed.length}`);
 for (const name of passed) console.log(`- ${name}`);
