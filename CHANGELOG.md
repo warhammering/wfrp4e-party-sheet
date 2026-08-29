@@ -5,6 +5,16 @@ All notable changes to this module are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] — 2026-08-29
+
+### Fixed
+
+- **Party pool and journey actions could be attributed to the wrong player.** A shared-pool
+  deposit/withdrawal or journey-stage action sent by a compromised or misbehaving client
+  could be recorded as coming from a different party member than the one who actually sent
+  it. Actions are now verified against Foundry's own connection identity for the sender,
+  never a value the client supplies.
+
 ## [1.3.0] — 2026-07-23
 
 ### Added
