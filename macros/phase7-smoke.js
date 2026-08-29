@@ -17,6 +17,18 @@ const record = (name, pass, detail) => { results.push({ case: name, ok: pass, de
 const originalConfirm = foundry.applications.api.DialogV2.confirm;
 foundry.applications.api.DialogV2.confirm = async () => true;
 
+// Chat-residue sweep (carry-forward item 3): capture the id of every ChatMessage the harness
+// run creates (group-test whispers, per-member blind-roll cards, log-summary posts) so `finally`
+// can delete them — their fixture actors get torn down below but the chat cards don't, and a
+// stale card referencing a deleted actor throws on every later world render.
+const chatMessageIds = [];
+const originalChatMessageCreate = ChatMessage.create;
+ChatMessage.create = async function (data, options) {
+  const msg = await originalChatMessageCreate.call(ChatMessage, data, options);
+  if (msg?.id) chatMessageIds.push(msg.id);
+  return msg;
+};
+
 const transfer = await import("/modules/wfrp4e-party-sheet/scripts/transfer.js");
 const { backfillPartyCoins } = await import("/modules/wfrp4e-party-sheet/scripts/party-model.js");
 
@@ -519,6 +531,10 @@ try {
 
 } finally {
   foundry.applications.api.DialogV2.confirm = originalConfirm;
+  ChatMessage.create = originalChatMessageCreate;
+  for (const id of chatMessageIds) {
+    await game.messages.get(id)?.delete();
+  }
   for (const a of [pc1, pc2, pc3, npc1, vehicle, vehicle2, vehicle3, capPC, queuePC1, queuePC2]) {
     if (a) await game.actors.get(a.id)?.delete();
   }

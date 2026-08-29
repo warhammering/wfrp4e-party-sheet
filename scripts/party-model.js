@@ -1,4 +1,15 @@
 import * as currency from "./currency.js";
+import {
+  deposit,
+  withdraw,
+  depositCoins,
+  withdrawCoins,
+  moveItem,
+  moveCoins,
+  addItem,
+  consolidateCoins,
+  setPartyItemQuantity,
+} from "./transfer.js";
 
 const MODULE_ID = "wfrp4e-party-sheet";
 
@@ -409,6 +420,21 @@ export async function backfillPartyCoins(party) {
 }
 
 Hooks.on("ready", async () => {
+  // Phase 8 (D6) — sanctioned write-seam surface for external consumers (MCP handler).
+  // Built at `ready`, not module top-level: `transfer.js` is a static import above (safe —
+  // it has no dependency back on this file, so no circular-import hazard), but `ready` is
+  // still the correct home since PartyModel itself must already be registered in
+  // CONFIG.Actor.dataModels (done at `init`, above) before any consumer treats this api as
+  // usable. Every other client (not just the GM) gets this object — it exposes read-safe
+  // references to functions, not a privileged channel by itself; each export enforces its
+  // own owner/GM checks (see transfer.js) same as it always has. Sanctioned seams ONLY —
+  // none of transfer.js's internal helper/test-seam exports are referenced below (D5).
+  game.modules.get(MODULE_ID).api = {
+    transfer: { deposit, withdraw, depositCoins, withdrawCoins, moveItem, moveCoins, addItem, consolidateCoins, setPartyItemQuantity },
+    model: { backfillPartyCoins },
+    PartyModel,
+  };
+
   if (!game.user.isGM) return;
 
   const parties = game.actors.filter(a => a.type === "wfrp4e-party-sheet.party");
