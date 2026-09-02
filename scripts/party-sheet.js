@@ -1327,6 +1327,7 @@ export class PartySheet extends BaseWFRP4eActorSheet {
     if (isQuestDrop && result.ok) await this.document.items.get(result.createdId)?.setFlag(MODULE_ID, "questItem", true);
   }
 
+  // GM-GATE: GATED_LATE_JUSTIFIED — resolves the pool item by its own local id, applies the quest-item GM check, then the CCR-2 owner-or-GM re-check before delegating to transfer.withdraw; no write precedes the gate.
   static async _onWithdrawItem(ev, target) {
     const itemId = target.closest("[data-id]")?.dataset.id;
     if (!itemId) return;
@@ -1451,6 +1452,7 @@ export class PartySheet extends BaseWFRP4eActorSheet {
     }
   }
 
+  // GM-GATE: GATED_LATE_JUSTIFIED — resolves the withdraw target first, then applies the owner-or-GM check before delegating to transfer.withdrawCoins; no write precedes the gate.
   static async _onWithdrawCoins(ev, target) {
     const targetActor = await this._resolveWithdrawTarget();
     if (!targetActor) return;
@@ -1678,6 +1680,7 @@ export class PartySheet extends BaseWFRP4eActorSheet {
   // (wfrp4e.js:4785-4798). No module healing maths: the system computes
   // woundsHealed = trunc(SL) + tb (wfrp4e.js:8045-8047) and renders its own
   // Apply Healing chat button (onApplyHealing, wfrp4e.js:33486-33502).
+  // GM-GATE: GATED_LATE_JUSTIFIED — resolves the member from the party's own list first, then applies the owner-or-GM check (ADR-013 D4) before the roll/flag writes.
   static async _onRestMember(ev, target) {
     let id = target.closest("[data-id]")?.dataset.id;
     if (!id) return;
@@ -1714,6 +1717,7 @@ export class PartySheet extends BaseWFRP4eActorSheet {
   // R5.3 — GM-attestation fallback (PRD Risk 5.A) until Phase 6's Stage state
   // exists. D7: the marker lives on the MEMBER PC actor, shaped {partyId, stage},
   // so Phase 6 can adopt the same flag unchanged. Clearing needs no confirm.
+  // GM-GATE: GATED_LATE_JUSTIFIED — resolves the member from the party's own list first, then applies a strict GM check before the flag write.
   static async _onToggleRecuperate(ev, target) {
     let id = target.closest("[data-id]")?.dataset.id;
     if (!id) return;
