@@ -7,6 +7,7 @@ const pendingRequests = new Map();
 let mutationTail = Promise.resolve();
 let initialized = false;
 
+// CONCURRENCY-SAFE: single global FIFO promise tail — every party mutation (local or relayed) serializes through this one chain on the active GM's client (BUG-826/831 fix shape).
 function enqueue(task) {
   const result = mutationTail.then(task, task);
   mutationTail = result.then(() => undefined, () => undefined);
@@ -28,6 +29,7 @@ async function execute(operation, payload, requester) {
   }
 }
 
+// TRUST-BOUNDARY: acting requester is game.users.get(senderUserId) from Foundry's transport argument, never a payload field (BUG-880 fix, mirrors BUG-547); a request executes only on the addressed active GM; responses resolve only from pending.gmId recorded at request time.
 async function onSocketMessage(message, senderUserId) {
   if (!message || message.moduleId !== MODULE_ID) return;
 
@@ -77,6 +79,7 @@ export function initializeMutationQueue() {
 export async function requestMutation(operation, payload) {
   const activeGM = game.users.activeGM;
   if (game.user.isGM && activeGM?.id === game.user.id) {
+    // CONCURRENCY-SAFE: local-GM mutations enqueue on this same FIFO tail as relayed ones, so no local write can jump ahead of a queued relay (active-GM-exclusive execution).
     return enqueue(() => execute(operation, payload, game.user));
   }
 
