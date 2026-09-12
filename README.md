@@ -258,6 +258,17 @@ unlock the full Journey engine.
 Custom denominations must form an exact exchange chain. If a larger coin cannot divide evenly into
 the next denomination, consolidation is disabled rather than risk producing the wrong amount.
 
+## How this module was built
+
+AI coding tools were used to write this module. No AI runs inside it — the module makes no
+external network requests, sends no telemetry, and works with your Foundry server offline.
+
+Every release is planned before it is written, checked by an independent review pass and an
+automated validation script, and then played through in a real Foundry world before it is
+tagged. The full account, including what it does not cover, is here:
+
+**[AI disclosure](https://github.com/warhammering/ai-disclosure)**
+
 ## Credits
 
 **Kingmaker — original concept and direction**
