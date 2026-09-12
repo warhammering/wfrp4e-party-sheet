@@ -1,7 +1,3 @@
-2026/09/01-20:01:55.916 eebc Recovering log #117
-2026/09/01-20:01:55.943 eebc Delete type=0 #117
-2026/09/01-20:01:55.943 eebc Delete type=3 #116
-2026/09/01-20:14:15.599 404c Level-0 table #121: started
-2026/09/01-20:14:15.600 404c Level-0 table #121: 0 bytes OK
-2026/09/01-20:14:15.602 404c Delete type=0 #119
-2026/09/01-20:14:15.602 404c Manual compaction at level-0 from '!tables!5D1JBZVBxjTgju0V' @ 72057594037927935 : 1 .. '!tables.results!KjdAeTjRVKA0Grq9.y0RC2Waq9yudVfcd' @ 0 : 0; will stop at (end)
+2026/09/07-12:30:26.436 9598 Recovering log #143
+2026/09/07-12:30:26.451 9598 Delete type=0 #143
+2026/09/07-12:30:26.451 9598 Delete type=3 #142
